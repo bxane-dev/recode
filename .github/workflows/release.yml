@@ -15,9 +15,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform:
-          - ubuntu-22.04
-          - windows-latest
+        include:
+          - platform: ubuntu-22.04
+            bundles: --bundles appimage,deb
+          - platform: windows-latest
+            bundles: --bundles nsis
 
     steps:
       - uses: actions/checkout@v4
@@ -50,3 +52,4 @@ jobs:
           releaseBody: "Native Windows and Linux builds of Recode."
           releaseDraft: false
           prerelease: false
+          args: ${{ matrix.bundles }}

@@ -27,8 +27,28 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "deb", "appimage"],
+    "publisher": "bxane-dev",
+    "category": "Utility",
     "shortDescription": "Offline single-player game trainer toolkit",
-    "longDescription": "Open-source memory scanner and trainer builder for offline and single-player games."
+    "longDescription": "Open-source memory scanner and trainer builder for offline and single-player games.",
+    "copyright": "Copyright © 2026 bxane-dev",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": false
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "startMenuFolder": "Recode",
+        "displayLanguageSelector": false,
+        "languages": ["English"]
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
   }
 }

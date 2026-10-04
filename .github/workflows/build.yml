@@ -16,8 +16,10 @@ jobs:
         include:
           - platform: ubuntu-22.04
             artifact: recode-linux
+            bundles: appimage,deb
           - platform: windows-latest
             artifact: recode-windows
+            bundles: nsis
 
     steps:
       - uses: actions/checkout@v4
@@ -41,12 +43,15 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
+      - name: Run frontend build
+        run: npm run build
+
       - name: Run Rust tests
         working-directory: src-tauri
         run: cargo test
 
       - name: Build desktop application
-        run: npm run tauri build
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
 
       - uses: actions/upload-artifact@v4
         with:

@@ -4,65 +4,64 @@ Recode is an open-source desktop trainer and memory-inspection toolkit for **off
 
 > Recode is not intended for competitive multiplayer cheating, anti-cheat bypassing, DRM circumvention, or interfering with online services.
 
-## What is included
+## Features
 
-- Windows and Linux desktop application built with Tauri 2, Rust, React and TypeScript
-- Running-process browser with search
-- Exact-value memory scans for signed/unsigned integers and floating-point values
-- Rescan support to narrow results after an in-game value changes
-- Direct value editing for selected addresses
-- Saved trainer entries stored locally in the UI
-- Offline-use acknowledgement and anti-cheat-process guardrails
+- Native Windows and Linux desktop application using Tauri 2 + Rust
+- React + TypeScript interface
+- Running-process browser and filtering
+- Exact-value scans for i32, u32, i64, u64, f32 and f64
+- Rescans to narrow addresses after values change
+- Direct value editing
+- Saved trainer entries with optional freeze toggles
+- Offline-use acknowledgement and anti-cheat process guardrails
 - GitHub Actions builds for Windows and Linux
-- Tag-based release workflow
+- Tag-based GitHub releases
 
-## Current status
+## Scope
 
-The first usable milestone is an MVP memory scanner/trainer. It deliberately does **not** contain anti-cheat bypasses, kernel drivers, stealth/injection mechanisms, network manipulation, or DRM bypasses.
+Recode is for local experimentation, modding and accessibility in offline/single-player games you are allowed to modify. The project intentionally does not include anti-cheat bypasses, kernel drivers, stealth/injection mechanisms, network manipulation, credential access, or DRM bypasses.
 
-## Development
+## Run locally
 
 Requirements:
 
 - Node.js 20+
 - Rust stable
-- Tauri 2 system prerequisites for your OS
-
-Install and run:
+- Tauri 2 system prerequisites
 
 ```bash
 npm install
 npm run tauri dev
 ```
 
-Build a native desktop bundle:
+Build a native bundle:
 
 ```bash
 npm run tauri build
 ```
 
-### Linux
+### Linux prerequisites
 
-Tauri requires WebKitGTK and related system packages. On Ubuntu/Debian:
+On Ubuntu/Debian:
 
 ```bash
 sudo apt update
 sudo apt install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
-Depending on your distro security settings, reading/writing another process may require permission changes or launching both Recode and the target game under the same user/session.
+Linux process-memory access is subject to your distro's ptrace/security policy. Recode does not weaken those controls.
 
 ### Windows
 
-Run Recode and the target game at the same privilege level. Recode does not request a kernel driver or attempt to bypass protected processes.
+Run Recode and the target game at the same privilege level. Recode uses documented user-mode Windows APIs and does not install a driver.
 
-## Releases
+## Builds
 
-Every push and pull request runs the Windows/Linux build workflow. Version tags matching `v*` run the release workflow and attach native bundles to a GitHub Release.
+Every push/PR runs `.github/workflows/build.yml` on Windows and Linux. Tags matching `v*` run `.github/workflows/release.yml` and create downloadable native release assets.
 
 ## Contributing
 
-Issues and pull requests are welcome. Keep contributions within Recode's offline/single-player scope.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Keep changes within the offline/single-player scope.
 
 ## License
 

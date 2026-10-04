@@ -61,6 +61,10 @@ pub fn first_scan(
     let overlap = pattern.len().saturating_sub(1);
 
     for region in regions {
+        if !region.writable {
+            continue;
+        }
+
         if scanned_bytes >= MAX_SCAN_BYTES || addresses.len() >= MAX_MATCHES {
             break;
         }

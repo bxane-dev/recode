@@ -4,6 +4,36 @@ Recode is an open-source desktop trainer and memory-inspection toolkit for **off
 
 > Recode is not intended for competitive multiplayer cheating, anti-cheat bypassing, DRM circumvention, or interfering with online services.
 
+## Download & install
+
+GitHub Actions produces ready-to-install packages:
+
+### Windows
+
+Download **`Recode-Setup-Windows-x64.exe`** from the latest successful **installers** workflow artifact named **Recode-Windows-Installer**.
+
+Run the setup program normally. It installs Recode for the current Windows user, adds an uninstall entry, and creates a Start Menu shortcut without requiring a system-wide installation.
+
+### Linux
+
+The Linux artifact contains:
+
+- **`Recode-Linux-x64.deb`** — install on Debian/Ubuntu-based distributions.
+- **`Recode-Linux-x64.AppImage`** — portable build for many Linux distributions.
+
+Install the Debian package with:
+
+```bash
+sudo apt install ./Recode-Linux-x64.deb
+```
+
+For AppImage:
+
+```bash
+chmod +x Recode-Linux-x64.AppImage
+./Recode-Linux-x64.AppImage
+```
+
 ## Features
 
 - Native Windows and Linux desktop application using Tauri 2 + Rust
@@ -14,7 +44,7 @@ Recode is an open-source desktop trainer and memory-inspection toolkit for **off
 - Direct value editing
 - Saved trainer entries with optional freeze toggles
 - Offline-use acknowledgement and anti-cheat process guardrails
-- GitHub Actions builds for Windows and Linux
+- GitHub Actions installer builds for Windows and Linux
 - Tag-based GitHub releases
 
 ## Scope
@@ -34,7 +64,7 @@ npm install
 npm run tauri dev
 ```
 
-Build a native bundle:
+Build native installers:
 
 ```bash
 npm run tauri build
@@ -57,7 +87,7 @@ Run Recode and the target game at the same privilege level. Recode uses document
 
 ## Builds
 
-Every push/PR runs `.github/workflows/build.yml` on Windows and Linux. Tags matching `v*` run `.github/workflows/release.yml` and create downloadable native release assets.
+Every push/PR runs `.github/workflows/build.yml` and produces installable Windows/Linux artifacts. Tags matching `v*` run `.github/workflows/release.yml`.
 
 ## Contributing
 

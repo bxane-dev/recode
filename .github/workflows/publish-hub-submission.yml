@@ -1,0 +1,55 @@
+name: publish-hub-submission
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    if: contains(github.event.issue.labels.*.name, 'hub-submission')
+    runs-on: ubuntu-latest
+    concurrency:
+      group: hub-submission-${{ github.event.issue.number }}
+      cancel-in-progress: true
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate and publish data-only profile
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_USER: ${{ github.event.issue.user.login }}
+        run: node scripts/publish-hub-submission.mjs
+
+      - name: Commit Hub catalog update
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name "recode-hub-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add hub/catalog.json hub/profiles
+          if git diff --cached --quiet; then
+            echo "No Hub changes to commit."
+          else
+            git commit -m "hub: publish community trainer #$ISSUE_NUMBER"
+            git push origin HEAD:main
+          fi
+
+      - name: Close successful submission
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "Validated and published to Recode Hub. It is now available to other Recode users."
+          gh issue close "$ISSUE_NUMBER"

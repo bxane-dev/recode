@@ -38,7 +38,7 @@ chmod +x Recode-Linux-x64.AppImage
 
 - Native Windows and Linux desktop application using Tauri 2 + Rust
 - React + TypeScript interface
-- Automatic Steam, GOG and Epic Games library detection
+- Automatic Steam, GOG and Epic Games library detection\n- Provider-neutral AI Builder for ChatGPT, Claude, Gemini and local/other AI models
 - Running-process browser and filtering
 - Exact-value scans for i32, u32, i64, u64, f32 and f64
 - Rescans to narrow addresses after values change
@@ -97,6 +97,14 @@ Supported import paths:
 For safety, Recode deliberately skips Cheat Engine Auto Assembler scripts, Lua, DLL injection, executable trainers, and other arbitrary code. Wand/WeMod uses its own proprietary encrypted trainer architecture, so Recode does not extract, crack or execute Wand trainers; users can continue using those through the official Wand application.
 
 The public Hub index lives in `hub/catalog.json`. Community profiles can be contributed through normal GitHub pull requests and reviewed before appearing in one-click search.
+
+## AI Builder and community Hub submissions
+
+Recode 1.3 includes a provider-neutral **AI Builder**. It generates a strict trainer-profile prompt that can be pasted into ChatGPT, Claude, Gemini, local models or another AI. The AI output can then be uploaded back into Recode with **Upload + Apply**.
+
+The prompt explicitly tells the AI not to invent addresses or signatures. If technical address data is missing, the AI should ask the user for scan results, a compatible table, a pointer chain, an AOB signature or other known game-specific data.
+
+**Submit to Hub** exports the active Recode profile and opens the GitHub Hub-submission form. Community submissions are automatically schema-checked and normalized by GitHub Actions before a data-only profile is committed into `hub/profiles/` and added to `hub/catalog.json`. Published profiles become available to every Recode installation through Hub search.
 
 ## Automatic updates
 

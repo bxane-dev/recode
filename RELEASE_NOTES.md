@@ -1,27 +1,27 @@
-# Recode v1.2.0
+# Recode v1.3.0
 
-Recode 1.2 adds automatic local game-library detection and a smoother no-terminal workflow.
+Recode 1.3 adds the AI Builder and community-published trainer Hub workflow.
 
 ## Added
 
-- Steam game detection, including additional Steam library folders
-- GOG game detection from common GOG/Galaxy locations
-- Epic Games detection from Epic launcher manifests
-- Linux Legendary/Heroic detection for Epic/GOG installs
-- Installed-game browser inside Recode
-- Automatic matching between detected games and running processes
-- Automatic running-process refresh
-- Manual Rescan and installed-game filtering
+- AI Builder compatible with ChatGPT, Claude, Gemini, local models and other AI assistants
+- Strict generated prompts for game-specific Recode trainer profiles
+- Upload + Apply for AI-produced Recode JSON and compatible Cheat Engine tables
+- Community **Submit to Hub** flow
+- Automated schema validation and publication of data-only community profiles
+- Automatic Hub discovery for selected Steam/GOG/Epic games when enabled
+- Remember-enabled-cheats setting
+- Automatic trainer-discovery setting
+- One-click apply for a detected game even before the game process starts
 
-## Existing features
+## Desktop release
 
-- Windows NSIS installer
+- Windows NSIS installer with GUI subsystem enabled: no terminal/console window
 - Linux DEB and AppImage
-- Recode Hub
-- Compatible Cheat Engine table import
-- Profiles, hotkeys, pointer chains and signatures
-- Signed auto-updater support when repository signing secrets are configured
+- Steam, GOG and Epic library detection
+- Recode Hub, profiles, hotkeys, signatures and pointer chains
+- Auto-updater support when signing secrets are configured
 
 ## Scope
 
-Recode is intended for offline/single-player games and local modding workflows.
+Offline/single-player games and local modding workflows only.

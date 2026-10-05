@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
-import HubPanel from "./components/HubPanel";
+import HubPanel from "./components/HubPanel";\nimport AiBuilderPanel from "./components/AiBuilderPanel";
 import StoreLibraryPanel from "./components/StoreLibraryPanel";
 import { parseCheatEngineTable } from "./lib/cheatEngine";
 import { loadSettings, saveSettings } from "./lib/settings";
@@ -227,8 +227,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    saveProfiles(profiles);
-  }, [profiles]);
+    const persisted = settings.rememberCheatSelection
+      ? profiles
+      : profiles.map((profile) => ({
+          ...profile,
+          trainers: profile.trainers.map((entry) => ({ ...entry, enabled: false }))
+        }));
+    saveProfiles(persisted);
+  }, [profiles, settings.rememberCheatSelection]);
 
   useEffect(() => {
     saveSettings(settings);
@@ -499,16 +505,21 @@ export default function App() {
     profile: TrainerProfile,
     autoApply: boolean
   ) => {
-    if (!selected) {
-      setStatus("Select the target game first");
+    const targetProcess =
+      selected?.name ||
+      selectedGame?.executable?.split(/[\\\\/]/).pop() ||
+      "";
+
+    if (!targetProcess) {
+      setStatus("Select a detected game or running process first");
       return;
     }
 
-    const target = selected.name.toLowerCase();
+    const target = targetProcess.toLowerCase();
     const profileTarget = profile.processName.toLowerCase();
     if (profileTarget && profileTarget !== target) {
       setStatus(
-        `Trainer targets ${profile.processName}, not ${selected.name}`
+        `Trainer targets ${profile.processName}, not ${targetProcess}`
       );
       return;
     }
@@ -519,12 +530,12 @@ export default function App() {
       name: profile.name.includes("(Hub)")
         ? profile.name
         : `${profile.name} (Hub)`,
-      processName: selected.name,
+      processName: targetProcess,
       trainers: profile.trainers.map((entry) => ({
         ...entry,
         id: crypto.randomUUID(),
-        pid: selected.pid,
-        processName: selected.name,
+        pid: selected?.pid ?? 0,
+        processName: targetProcess,
         enabled: Boolean(autoApply && offlineConfirmed)
       })),
       createdAt: new Date().toISOString(),
@@ -651,8 +662,8 @@ export default function App() {
     const entry: TrainerEntry = {
       id: crypto.randomUUID(),
       label,
-      pid: selected.pid,
-      processName: selected.name,
+      pid: selected?.pid ?? 0,
+      processName: targetProcess,
       address,
       valueType,
       value: scanValue,
@@ -912,7 +923,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.2.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.3.0</div>
         </div>
         <div className="topbar-actions">
           <button
@@ -1016,7 +1027,17 @@ export default function App() {
 
           <HubPanel
             selected={selected}
+            selectedGame={selectedGame}
+            autoDownloadCompatible={settings.autoDownloadCompatible}
             offlineConfirmed={offlineConfirmed}
+            onInstall={installHubProfile}
+            onStatus={setStatus}
+          />
+
+          <AiBuilderPanel
+            selectedProcess={selected}
+            selectedGame={selectedGame}
+            activeProfile={activeProfile}
             onInstall={installHubProfile}
             onStatus={setStatus}
           />

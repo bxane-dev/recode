@@ -1,0 +1,43 @@
+name: Trainer Hub submission
+description: Submit a data-only Recode trainer profile to the public Hub
+title: "[Hub] "
+labels: ["hub-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit a Recode JSON profile for an offline/single-player game. Valid submissions are automatically schema-checked before publication.
+  - type: input
+    id: game
+    attributes:
+      label: Game
+      placeholder: Example Game
+    validations:
+      required: true
+  - type: input
+    id: process
+    attributes:
+      label: Process executable
+      placeholder: game.exe
+    validations:
+      required: true
+  - type: input
+    id: profile_url
+    attributes:
+      label: Raw profile URL
+      description: Paste an HTTPS raw.githubusercontent.com or gist.githubusercontent.com URL to a .json Recode profile.
+      placeholder: https://gist.githubusercontent.com/.../trainer.recode.json
+    validations:
+      required: true
+  - type: input
+    id: description
+    attributes:
+      label: Description
+      placeholder: Infinite stamina, coins, health...
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: This profile is for offline/single-player use and contains no anti-cheat bypass, DRM bypass, credential access, or online-service manipulation.
+          required: true

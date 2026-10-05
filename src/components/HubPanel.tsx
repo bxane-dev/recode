@@ -1,9 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadHubCatalog, loadRemoteTrainer } from "../lib/hub";
-import type { HubEntry, ProcessInfo, TrainerProfile } from "../types";
+import type { HubEntry, InstalledGame, ProcessInfo, TrainerProfile } from "../types";
 
 interface Props {
   selected: ProcessInfo | null;
+  selectedGame: InstalledGame | null;
+  autoDownloadCompatible: boolean;
   offlineConfirmed: boolean;
   onInstall: (profile: TrainerProfile, autoApply: boolean) => void;
   onStatus: (message: string) => void;
@@ -15,6 +17,8 @@ function normalizeProcess(value: string) {
 
 export default function HubPanel({
   selected,
+  selectedGame,
+  autoDownloadCompatible,
   offlineConfirmed,
   onInstall,
   onStatus
@@ -23,19 +27,24 @@ export default function HubPanel({
   const [remoteUrl, setRemoteUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const selectedTarget =
+    selected?.name ||
+    selectedGame?.executable?.split(/[\\\\/]/).pop() ||
+    "";
+
   const matches = useMemo(() => {
-    if (!selected) return [];
-    const target = normalizeProcess(selected.name);
+    if (!selectedTarget) return [];
+    const target = normalizeProcess(selectedTarget);
     return entries.filter((entry) =>
       entry.processNames.some(
         (processName) => normalizeProcess(processName) === target
       )
     );
-  }, [entries, selected]);
+  }, [entries, selectedTarget]);
 
   const search = async () => {
-    if (!selected) {
-      onStatus("Select a game process before searching Recode Hub");
+    if (!selectedTarget) {
+      onStatus("Select a detected game or running process before searching Recode Hub");
       return;
     }
     setLoading(true);
@@ -45,7 +54,7 @@ export default function HubPanel({
       const count = catalog.entries.filter((entry) =>
         entry.processNames.some(
           (processName) =>
-            normalizeProcess(processName) === normalizeProcess(selected.name)
+            normalizeProcess(processName) === normalizeProcess(selectedTarget)
         )
       ).length;
       onStatus(
@@ -60,14 +69,20 @@ export default function HubPanel({
     }
   };
 
+  useEffect(() => {
+    if (autoDownloadCompatible && selectedTarget) {
+      void search();
+    }
+  }, [selectedTarget, autoDownloadCompatible]);
+
   const installEntry = async (entry: HubEntry) => {
-    if (!selected || !offlineConfirmed) {
+    if (!selectedTarget || !offlineConfirmed) {
       onStatus("Select the offline game and confirm offline/single-player use first");
       return;
     }
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(entry.profileUrl, selected.name);
+      const profile = await loadRemoteTrainer(entry.profileUrl, selectedTarget);
       onInstall(profile, true);
     } catch (error) {
       onStatus(`Hub install failed: ${String(error)}`);
@@ -77,7 +92,7 @@ export default function HubPanel({
   };
 
   const importUrl = async () => {
-    if (!selected || !offlineConfirmed) {
+    if (!selectedTarget || !offlineConfirmed) {
       onStatus("Select the offline game and confirm offline/single-player use first");
       return;
     }
@@ -85,7 +100,7 @@ export default function HubPanel({
 
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(remoteUrl.trim(), selected.name);
+      const profile = await loadRemoteTrainer(remoteUrl.trim(), selectedTarget);
       onInstall(profile, true);
       setRemoteUrl("");
     } catch (error) {

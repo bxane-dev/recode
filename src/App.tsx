@@ -1263,13 +1263,40 @@ export default function App() {
                     </div>
 
                     <div className="trainer-edit">
-                      <input
-                        className="input"
-                        value={entry.value}
-                        onChange={(event) =>
-                          updateTrainer(entry.id, { value: event.target.value })
-                        }
-                      />
+                      {entry.control?.kind === "slider" ? (
+                        <div className="trainer-value-control">
+                          <input
+                            className="trainer-slider"
+                            type="range"
+                            min={entry.control.min}
+                            max={entry.control.max}
+                            step={entry.control.step}
+                            value={entry.value}
+                            onChange={(event) =>
+                              updateTrainer(entry.id, { value: event.target.value })
+                            }
+                          />
+                          <input
+                            className="input trainer-number-box"
+                            type="number"
+                            min={entry.control.min}
+                            max={entry.control.max}
+                            step={entry.control.step}
+                            value={entry.value}
+                            onChange={(event) =>
+                              updateTrainer(entry.id, { value: event.target.value })
+                            }
+                          />
+                        </div>
+                      ) : (
+                        <input
+                          className="input"
+                          value={entry.value}
+                          onChange={(event) =>
+                            updateTrainer(entry.id, { value: event.target.value })
+                          }
+                        />
+                      )}
                       <select
                         className="input"
                         value={entry.valueType}

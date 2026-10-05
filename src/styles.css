@@ -980,3 +980,21 @@ button:disabled {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+.trainer-value-control {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 0.7fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trainer-slider {
+  width: 100%;
+  accent-color: #9aff5c;
+}
+
+.trainer-number-box {
+  min-width: 0;
+}

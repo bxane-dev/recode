@@ -84,6 +84,13 @@ export interface ScanSummary {
   scanned_bytes: number;
 }
 
+export interface TrainerValueControl {
+  kind: "slider";
+  min: string;
+  max: string;
+  step: string;
+}
+
 export interface TrainerEntry {
   id: string;
   label: string;
@@ -93,6 +100,7 @@ export interface TrainerEntry {
   valueType: ValueType;
   value: string;
   enabled: boolean;
+  control?: TrainerValueControl;
   hotkey?: string;
   pointerChain?: PointerChainConfig;
   signature?: SignatureConfig;

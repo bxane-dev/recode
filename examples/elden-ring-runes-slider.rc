@@ -1,0 +1,30 @@
+{
+  "schema": "recode.trainer-profile",
+  "version": 1,
+  "profile": {
+    "id": "example-elden-ring-runes-slider",
+    "name": "Elden Ring - Adjustable Runes Example",
+    "processName": "eldenring.exe",
+    "trainers": [
+      {
+        "id": "example-runes-slider",
+        "label": "Runes amount (replace placeholder address)",
+        "pid": 0,
+        "processName": "eldenring.exe",
+        "address": "0x0",
+        "valueType": "u64",
+        "value": "9999999999999",
+        "enabled": false,
+        "control": {
+          "kind": "slider",
+          "min": "0",
+          "max": "9999999999999",
+          "step": "1"
+        }
+      }
+    ],
+    "createdAt": "2026-10-05T00:00:00.000Z",
+    "updatedAt": "2026-10-05T00:00:00.000Z",
+    "formatVersion": 1
+  }
+}

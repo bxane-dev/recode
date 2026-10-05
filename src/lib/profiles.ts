@@ -179,6 +179,19 @@ function normalizeTrainer(input: unknown): TrainerEntry | null {
     valueType: value.valueType as ValueType,
     value: value.value,
     enabled: Boolean(value.enabled),
+    control:
+      value.control &&
+      value.control.kind === "slider" &&
+      typeof value.control.min === "string" &&
+      typeof value.control.max === "string" &&
+      typeof value.control.step === "string"
+        ? {
+            kind: "slider",
+            min: value.control.min,
+            max: value.control.max,
+            step: value.control.step
+          }
+        : undefined,
     hotkey: typeof value.hotkey === "string" ? value.hotkey : undefined,
     pointerChain:
       value.pointerChain &&

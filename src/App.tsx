@@ -785,7 +785,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v0.4.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.0.0</div>
         </div>
         <div className="status-pill">
           <span className="status-dot" />

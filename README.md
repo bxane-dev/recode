@@ -6,17 +6,17 @@ Recode is an open-source desktop trainer and memory-inspection toolkit for **off
 
 ## Download & install
 
-GitHub Actions produces ready-to-install packages:
+Stable installers are published on the GitHub **Releases** page.
 
 ### Windows
 
-Download **`Recode-Setup-Windows-x64.exe`** from the latest successful **installers** workflow artifact named **Recode-Windows-Installer**.
+Download **`Recode-Setup-Windows-x64.exe`** from the latest release.
 
 Run the setup program normally. It installs Recode for the current Windows user, adds an uninstall entry, and creates a Start Menu shortcut without requiring a system-wide installation.
 
 ### Linux
 
-The Linux artifact contains:
+The latest release contains:
 
 - **`Recode-Linux-x64.deb`** — install on Debian/Ubuntu-based distributions.
 - **`Recode-Linux-x64.AppImage`** — portable build for many Linux distributions.
@@ -76,7 +76,7 @@ A trainer can use a signed result offset from the matched signature, such as `+0
 
 ## Profiles and hotkeys
 
-Recode v0.4 stores trainers in named profiles. A profile contains its game executable binding plus all saved raw addresses, pointer chains, AOB signatures, values and optional hotkeys.
+Recode stores trainers in named profiles. A profile contains its game executable binding plus all saved raw addresses, pointer chains, AOB signatures, values and optional hotkeys.
 
 Profiles can be exported as `*.recode.json` files and imported on another Recode installation. Imported entries are disabled by default until the user explicitly enables them.
 
@@ -122,7 +122,7 @@ Run Recode and the target game at the same privilege level. Recode uses document
 
 ## Builds
 
-Every push/PR runs `.github/workflows/build.yml` and produces installable Windows/Linux artifacts. Tags matching `v*` run `.github/workflows/release.yml`.
+Every push/PR runs `.github/workflows/build.yml` and produces installable Windows/Linux artifacts. Release branches named `release/v*` run `.github/workflows/release.yml`, which creates the matching GitHub release and attaches Windows/Linux installers plus SHA-256 checksums.
 
 ## Contributing
 

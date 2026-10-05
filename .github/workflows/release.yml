@@ -2,33 +2,41 @@ name: release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - "release/v*"
 
 permissions:
   contents: write
 
 jobs:
-  publish:
-    name: Release ${{ matrix.platform }}
-    runs-on: ${{ matrix.platform }}
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-22.04
-            bundles: --bundles appimage,deb
-          - platform: windows-latest
-            bundles: --bundles nsis
+          - name: Windows
+            os: windows-latest
+            bundles: nsis
+            artifact: Recode-Release-Windows
+          - name: Linux
+            os: ubuntu-22.04
+            bundles: deb,appimage
+            artifact: Recode-Release-Linux
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt-get update
-          sudo apt-get install -y             libwebkit2gtk-4.1-dev             libayatana-appindicator3-dev             librsvg2-dev             libxdo-dev
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libxdo-dev
 
       - uses: actions/setup-node@v4
         with:
@@ -40,16 +48,88 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: npm install
 
-      - uses: tauri-apps/tauri-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build frontend
+        run: npm run build
+
+      - name: Test Rust core
+        working-directory: src-tauri
+        run: cargo test
+
+      - name: Build installers
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
+
+      - name: Prepare Windows release asset
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
+          $setup = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          if (-not $setup) { throw "NSIS setup executable was not produced." }
+          Copy-Item $setup.FullName "release-assets/Recode-Setup-Windows-x64.exe"
+
+      - name: Prepare Linux release assets
+        if: matrix.os == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          DEB="$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' | head -n 1)"
+          APPIMAGE="$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
+          test -n "$DEB"
+          test -n "$APPIMAGE"
+          cp "$DEB" release-assets/Recode-Linux-x64.deb
+          cp "$APPIMAGE" release-assets/Recode-Linux-x64.AppImage
+          chmod +x release-assets/Recode-Linux-x64.AppImage
+
+      - uses: actions/upload-artifact@v4
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Recode ${{ github.ref_name }}"
-          releaseBody: "Native Windows and Linux builds of Recode."
-          releaseDraft: false
-          prerelease: false
-          args: ${{ matrix.bundles }}
+          name: ${{ matrix.artifact }}
+          path: release-assets/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: Recode-Release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Validate release version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#release/}"
+          PACKAGE_VERSION="$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+          test "$VERSION" = "v$PACKAGE_VERSION"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Create checksums
+        working-directory: release-assets
+        run: sha256sum Recode-* > SHA256SUMS.txt
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            gh release upload "$VERSION" release-assets/* --clobber
+            gh release edit "$VERSION" --title "Recode $VERSION" --notes-file RELEASE_NOTES.md --latest
+          else
+            gh release create "$VERSION" release-assets/* \
+              --target "$GITHUB_SHA" \
+              --title "Recode $VERSION" \
+              --notes-file RELEASE_NOTES.md \
+              --latest
+          fi

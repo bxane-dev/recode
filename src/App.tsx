@@ -509,6 +509,8 @@ export default function App() {
     const targetProcess =
       selected?.name ||
       selectedGame?.executable?.split(/[\\\\/]/).pop() ||
+      profile.processName ||
+      profile.trainers[0]?.processName ||
       "";
 
     if (!targetProcess) {

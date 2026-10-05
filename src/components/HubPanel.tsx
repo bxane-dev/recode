@@ -46,17 +46,23 @@ export default function HubPanel({
   const selectedGameName = selectedGame?.name || selectedTarget;
 
   const matches = useMemo(() => {
-    if (!selectedTarget) return [];
     const target = normalizeProcess(selectedTarget);
-    return entries.filter((entry) =>
-      entry.processNames.some(
-        (processName) => normalizeProcess(processName) === target
-      )
-    );
-  }, [entries, selectedTarget]);
+    const gameTitle = selectedGameName.trim().toLowerCase();
+
+    return entries.filter((entry) => {
+      const processMatch =
+        Boolean(target) &&
+        entry.processNames.some(
+          (processName) => normalizeProcess(processName) === target
+        );
+      const titleMatch =
+        Boolean(gameTitle) && entry.game.trim().toLowerCase() === gameTitle;
+      return processMatch || titleMatch;
+    });
+  }, [entries, selectedTarget, selectedGameName]);
 
   const search = async () => {
-    if (!selectedTarget) {
+    if (!selectedTarget && !selectedGame) {
       onStatus(
         "Select a detected game or running process before searching Recode Hub"
       );
@@ -68,7 +74,7 @@ export default function HubPanel({
       let combined: HubEntry[] = [];
 
       try {
-        combined = await searchSupabaseHub(selectedTarget);
+        combined = await searchSupabaseHub(selectedTarget, selectedGame);
       } catch {
         combined = [];
       }
@@ -84,12 +90,18 @@ export default function HubPanel({
 
       setEntries(combined);
 
-      const compatible = combined.filter((entry) =>
-        entry.processNames.some(
-          (processName) =>
-            normalizeProcess(processName) === normalizeProcess(selectedTarget)
-        )
-      );
+      const target = normalizeProcess(selectedTarget);
+      const gameTitle = selectedGameName.trim().toLowerCase();
+      const compatible = combined.filter((entry) => {
+        const processMatch =
+          Boolean(target) &&
+          entry.processNames.some(
+            (processName) => normalizeProcess(processName) === target
+          );
+        const titleMatch =
+          Boolean(gameTitle) && entry.game.trim().toLowerCase() === gameTitle;
+        return processMatch || titleMatch;
+      });
 
       let cached = 0;
       if (autoDownloadCompatible) {
@@ -98,7 +110,10 @@ export default function HubPanel({
           try {
             const profile = entry.profileUrl.startsWith("supabase://")
               ? await loadSupabaseProfile(entry.id)
-              : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+              : await loadRemoteTrainer(
+                  entry.profileUrl,
+                  selectedTarget || entry.processNames[0] || ""
+                );
             cacheHubProfile(entry.id, profile);
             cached += 1;
           } catch {
@@ -123,10 +138,10 @@ export default function HubPanel({
   };
 
   useEffect(() => {
-    if (autoDownloadCompatible && selectedTarget) {
+    if (autoDownloadCompatible && (selectedTarget || selectedGame)) {
       void search();
     }
-  }, [selectedTarget, autoDownloadCompatible]);
+  }, [selectedTarget, selectedGame?.id, autoDownloadCompatible]);
 
   const searchCheatEngineWeb = async () => {
     if (!selectedGameName) {
@@ -183,7 +198,7 @@ export default function HubPanel({
   };
 
   const installEntry = async (entry: HubEntry) => {
-    if (!selectedTarget || !offlineConfirmed) {
+    if ((!selectedTarget && !selectedGame) || !offlineConfirmed) {
       onStatus(
         "Select the offline game and confirm offline/single-player use first"
       );
@@ -196,7 +211,10 @@ export default function HubPanel({
       if (!profile) {
         profile = entry.profileUrl.startsWith("supabase://")
           ? await loadSupabaseProfile(entry.id)
-          : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+          : await loadRemoteTrainer(
+              entry.profileUrl,
+              selectedTarget || entry.processNames[0] || ""
+            );
         cacheHubProfile(entry.id, profile);
       }
 

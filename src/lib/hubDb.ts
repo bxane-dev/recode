@@ -1,11 +1,14 @@
 import { recodeSupabase } from "./supabase";
-import type { HubEntry, TrainerProfile } from "../types";
+import type { HubEntry, InstalledGame, TrainerProfile } from "../types";
 import { parseProfileFile, profileToFile } from "./profiles";
 
 interface DbGame {
   id: string;
   title: string;
   process_names: string[];
+  steam_app_id: string | null;
+  gog_product_id: string | null;
+  epic_catalog_id: string | null;
 }
 
 interface DbProfile {
@@ -23,19 +26,42 @@ function normalizeProcess(value: string) {
   return value.trim().toLowerCase().replace(/\.(exe|bin)$/i, "");
 }
 
-export async function searchSupabaseHub(processName: string): Promise<HubEntry[]> {
+export async function searchSupabaseHub(
+  processName: string,
+  installedGame?: InstalledGame | null
+): Promise<HubEntry[]> {
   if (!recodeSupabase) return [];
 
   const { data: games, error: gameError } = await recodeSupabase
     .from("recode_games")
-    .select("id,title,process_names");
+    .select(
+      "id,title,process_names,steam_app_id,gog_product_id,epic_catalog_id"
+    );
 
   if (gameError) throw gameError;
 
   const target = normalizeProcess(processName);
-  const matched = (games as DbGame[] | null)?.filter((game) =>
-    game.process_names.some((name) => normalizeProcess(name) === target)
-  ) ?? [];
+  const storeId = installedGame?.id.split(":").slice(1).join(":") ?? "";
+  const store = installedGame?.store.toLowerCase() ?? "";
+  const title = installedGame?.name.trim().toLowerCase() ?? "";
+
+  const matched =
+    (games as DbGame[] | null)?.filter((game) => {
+      const processMatch =
+        Boolean(target) &&
+        game.process_names.some(
+          (name) => normalizeProcess(name) === target
+        );
+      const titleMatch =
+        Boolean(title) && game.title.trim().toLowerCase() === title;
+      const storeMatch =
+        Boolean(storeId) &&
+        ((store.includes("steam") && game.steam_app_id === storeId) ||
+          (store.includes("gog") && game.gog_product_id === storeId) ||
+          (store.includes("epic") && game.epic_catalog_id === storeId));
+
+      return processMatch || titleMatch || storeMatch;
+    }) ?? [];
 
   if (!matched.length) return [];
 

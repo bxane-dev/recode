@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "Default Recode desktop capability",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister-all"
+  ]
 }

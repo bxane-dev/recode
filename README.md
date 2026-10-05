@@ -49,6 +49,9 @@ chmod +x Recode-Linux-x64.AppImage
 - Signature occurrence selection and signed result offsets
 - Offline-use acknowledgement and anti-cheat process guardrails
 - GitHub Actions installer builds for Windows and Linux
+- Trainer profile library with per-game collections
+- JSON profile import/export
+- Global trainer hotkeys on Windows and Linux
 - Tag-based GitHub releases
 
 ## Stable trainers
@@ -63,13 +66,21 @@ Game.exe + 0x01F0A120 → 0x18 → 0x30 → 0x8
 
 ### AOB signatures
 
-Recode v0.3 can scan a selected loaded module for an array-of-bytes signature. Wildcards allow bytes that may change between builds:
+Recode can scan a selected loaded module for an array-of-bytes signature. Wildcards allow bytes that may change between builds:
 
 ```text
 48 8B ?? ?? 89 45 ?? 48 85 C0
 ```
 
 A trainer can use a signed result offset from the matched signature, such as `+0x18` or `-0x10`. Signatures are resolved again when a frozen trainer is applied. A signature only remains update-stable when the chosen byte pattern itself remains sufficiently unique across game versions.
+
+## Profiles and hotkeys
+
+Recode v0.4 stores trainers in named profiles. A profile contains its game executable binding plus all saved raw addresses, pointer chains, AOB signatures, values and optional hotkeys.
+
+Profiles can be exported as `*.recode.json` files and imported on another Recode installation. Imported entries are disabled by default until the user explicitly enables them.
+
+Hotkeys use Tauri's native global-shortcut support. Examples include `F6`, `Control+Shift+H` and `Alt+F8`. Recode registers only the active profile's shortcuts.
 
 ## Scope
 

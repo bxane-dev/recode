@@ -1,23 +1,38 @@
 import { useEffect, useMemo, useState } from "react";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import {
+  register,
+  unregisterAll
+} from "@tauri-apps/plugin-global-shortcut";
 import {
   clearScan,
   findSignature,
   listModules,
   listProcesses,
+  readProfileFile,
   rescan,
   resolvePointerChain,
   startScan,
+  writeProfileFile,
   writeValue
 } from "./lib/api";
+import {
+  loadActiveProfileId,
+  loadProfiles,
+  makeProfile,
+  parseProfileFile,
+  profileToFile,
+  saveActiveProfileId,
+  saveProfiles
+} from "./lib/profiles";
 import type {
   ProcessInfo,
   ProcessModule,
   ScanSummary,
   TrainerEntry,
+  TrainerProfile,
   ValueType
 } from "./types";
-
-const TRAINER_KEY = "recode.trainers.v3";
 
 function formatBytes(value: number) {
   const units = ["B", "KB", "MB", "GB"];
@@ -30,23 +45,48 @@ function formatBytes(value: number) {
   return `${current.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
-function loadTrainers(): TrainerEntry[] {
-  try {
-    const raw =
-      localStorage.getItem(TRAINER_KEY) ??
-      localStorage.getItem("recode.trainers.v2") ??
-      localStorage.getItem("recode.trainers.v1");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
 function parseHex(value: string) {
   return BigInt(value);
 }
 
+function normalizeHotkey(raw: string) {
+  const aliases: Record<string, string> = {
+    ctrl: "Control",
+    control: "Control",
+    alt: "Alt",
+    shift: "Shift",
+    super: "Super",
+    meta: "Super",
+    cmdorctrl: "CommandOrControl",
+    commandorcontrol: "CommandOrControl"
+  };
+
+  return raw
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part, index, all) => {
+      if (index === all.length - 1) {
+        if (/^f\d{1,2}$/i.test(part)) return part.toUpperCase();
+        if (part.length === 1) return part.toUpperCase();
+      }
+      return aliases[part.toLowerCase()] ?? part;
+    })
+    .join("+");
+}
+
+function hotkeyLooksValid(value: string) {
+  if (/^F(?:[1-9]|1\d|2[0-4])$/i.test(value)) return true;
+  const parts = value.split("+");
+  return parts.length >= 2 && parts.every(Boolean);
+}
+
 export default function App() {
+  const initialProfiles = useMemo(() => loadProfiles(), []);
+  const [profiles, setProfiles] = useState<TrainerProfile[]>(initialProfiles);
+  const [activeProfileId, setActiveProfileId] = useState(() =>
+    loadActiveProfileId(initialProfiles)
+  );
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
   const [modules, setModules] = useState<ProcessModule[]>([]);
   const [processFilter, setProcessFilter] = useState("");
@@ -55,9 +95,36 @@ export default function App() {
   const [valueType, setValueType] = useState<ValueType>("i32");
   const [scanValue, setScanValue] = useState("100");
   const [scan, setScan] = useState<ScanSummary | null>(null);
-  const [trainers, setTrainers] = useState<TrainerEntry[]>(loadTrainers);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Ready");
+
+  const activeProfile =
+    profiles.find((profile) => profile.id === activeProfileId) ?? profiles[0];
+  const trainers = activeProfile?.trainers ?? [];
+
+  const updateProfile = (
+    profileId: string,
+    updater: (profile: TrainerProfile) => TrainerProfile
+  ) => {
+    setProfiles((current) =>
+      current.map((profile) =>
+        profile.id === profileId
+          ? { ...updater(profile), updatedAt: new Date().toISOString() }
+          : profile
+      )
+    );
+  };
+
+  const setTrainers = (
+    updater: TrainerEntry[] | ((current: TrainerEntry[]) => TrainerEntry[])
+  ) => {
+    if (!activeProfile) return;
+    updateProfile(activeProfile.id, (profile) => ({
+      ...profile,
+      trainers:
+        typeof updater === "function" ? updater(profile.trainers) : updater
+    }));
+  };
 
   const refresh = async () => {
     try {
@@ -89,8 +156,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(TRAINER_KEY, JSON.stringify(trainers));
-  }, [trainers]);
+    saveProfiles(profiles);
+  }, [profiles]);
+
+  useEffect(() => {
+    if (activeProfileId) saveActiveProfileId(activeProfileId);
+  }, [activeProfileId]);
+
+  useEffect(() => {
+    if (!activeProfile) return;
+    const match = processes.find(
+      (process) =>
+        process.name.toLowerCase() === activeProfile.processName.toLowerCase()
+    );
+    if (match && selected?.pid !== match.pid) {
+      setSelected(match);
+    }
+  }, [activeProfileId, processes]);
 
   useEffect(() => {
     if (selected && offlineConfirmed) {
@@ -99,6 +181,56 @@ export default function App() {
       setModules([]);
     }
   }, [selected?.pid, offlineConfirmed]);
+
+  const hotkeyDefinition = useMemo(
+    () =>
+      trainers
+        .filter((entry) => entry.hotkey)
+        .map((entry) => `${entry.id}:${entry.hotkey}`)
+        .sort()
+        .join("|"),
+    [trainers]
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    const configure = async () => {
+      try {
+        await unregisterAll();
+        const hotkeys = [
+          ...new Set(
+            trainers
+              .map((entry) => entry.hotkey)
+              .filter((value): value is string => Boolean(value))
+          )
+        ];
+
+        if (!hotkeys.length) return;
+
+        await register(hotkeys, (event) => {
+          if (!active || event.state !== "Pressed") return;
+          const triggered = event.shortcut.toLowerCase();
+
+          setTrainers((current) =>
+            current.map((entry) =>
+              entry.hotkey?.toLowerCase() === triggered
+                ? { ...entry, enabled: !entry.enabled }
+                : entry
+            )
+          );
+        });
+      } catch (error) {
+        if (active) setStatus(`Hotkey registration failed: ${String(error)}`);
+      }
+    };
+
+    void configure();
+    return () => {
+      active = false;
+      void unregisterAll();
+    };
+  }, [activeProfileId, hotkeyDefinition]);
 
   useEffect(() => {
     const enabled = trainers.filter((entry) => entry.enabled);
@@ -188,9 +320,138 @@ export default function App() {
 
   const attach = (process: ProcessInfo) => {
     setSelected(process);
+    if (activeProfile && !activeProfile.processName) {
+      updateProfile(activeProfile.id, (profile) => ({
+        ...profile,
+        processName: process.name
+      }));
+    }
     if (scan) void clearScan(scan.session_id).catch(() => {});
     setScan(null);
     setStatus(`Attached selection: ${process.name} (PID ${process.pid})`);
+  };
+
+  const createProfile = () => {
+    const name = window.prompt("Profile name", selected?.name ?? "New profile")?.trim();
+    if (!name) return;
+
+    const profile = makeProfile(name, selected?.name ?? "");
+    setProfiles((current) => [...current, profile]);
+    setActiveProfileId(profile.id);
+    setStatus(`Created profile: ${profile.name}`);
+  };
+
+  const renameProfile = () => {
+    if (!activeProfile) return;
+    const name = window.prompt("Rename profile", activeProfile.name)?.trim();
+    if (!name) return;
+    updateProfile(activeProfile.id, (profile) => ({ ...profile, name }));
+  };
+
+  const deleteProfile = () => {
+    if (!activeProfile) return;
+    if (profiles.length === 1) {
+      setStatus("Keep at least one profile");
+      return;
+    }
+
+    const ok = window.confirm(
+      `Delete profile "${activeProfile.name}" and its ${activeProfile.trainers.length} trainer entries?`
+    );
+    if (!ok) return;
+
+    const remaining = profiles.filter((profile) => profile.id !== activeProfile.id);
+    setProfiles(remaining);
+    setActiveProfileId(remaining[0]?.id ?? "");
+  };
+
+  const exportProfile = async () => {
+    if (!activeProfile) return;
+
+    try {
+      const safeName = activeProfile.name
+        .replace(/[^a-z0-9-_]+/gi, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase() || "profile";
+
+      const path = await save({
+        title: "Export Recode profile",
+        defaultPath: `${safeName}.recode.json`,
+        filters: [{ name: "Recode profile", extensions: ["json"] }]
+      });
+      if (!path) return;
+
+      await writeProfileFile(
+        path,
+        JSON.stringify(profileToFile(activeProfile), null, 2)
+      );
+      setStatus(`Exported ${activeProfile.name}`);
+    } catch (error) {
+      setStatus(String(error));
+    }
+  };
+
+  const importProfile = async () => {
+    try {
+      const path = await open({
+        title: "Import Recode profile",
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Recode profile", extensions: ["json"] }]
+      });
+      if (!path || Array.isArray(path)) return;
+
+      const raw = await readProfileFile(path);
+      const imported = parseProfileFile(raw);
+      setProfiles((current) => [...current, imported]);
+      setActiveProfileId(imported.id);
+      setStatus(
+        `Imported ${imported.name} with ${imported.trainers.length} trainer entries`
+      );
+    } catch (error) {
+      setStatus(`Import failed: ${String(error)}`);
+    }
+  };
+
+  const configureHotkey = (entry: TrainerEntry) => {
+    const raw = window
+      .prompt(
+        "Global hotkey. Examples: F6, Control+Shift+H, Alt+F8. Leave blank to remove.",
+        entry.hotkey ?? "F6"
+      );
+    if (raw === null) return;
+
+    const hotkey = normalizeHotkey(raw.trim());
+    if (!hotkey) {
+      setTrainers((current) =>
+        current.map((item) =>
+          item.id === entry.id ? { ...item, hotkey: undefined } : item
+        )
+      );
+      return;
+    }
+
+    if (!hotkeyLooksValid(hotkey)) {
+      setStatus("Hotkey format is invalid");
+      return;
+    }
+
+    const duplicate = trainers.find(
+      (item) =>
+        item.id !== entry.id &&
+        item.hotkey?.toLowerCase() === hotkey.toLowerCase()
+    );
+    if (duplicate) {
+      setStatus(`${hotkey} is already assigned to ${duplicate.label}`);
+      return;
+    }
+
+    setTrainers((current) =>
+      current.map((item) =>
+        item.id === entry.id ? { ...item, hotkey } : item
+      )
+    );
+    setStatus(`${entry.label} hotkey → ${hotkey}`);
   };
 
   const doFirstScan = async () => {
@@ -256,7 +517,7 @@ export default function App() {
   };
 
   const saveTrainer = (address: string) => {
-    if (!selected) return;
+    if (!selected || !activeProfile) return;
     const label = window.prompt("Trainer name", "New cheat")?.trim();
     if (!label) return;
 
@@ -271,6 +532,13 @@ export default function App() {
       enabled: false
     };
     setTrainers((current) => [entry, ...current]);
+
+    if (!activeProfile.processName) {
+      updateProfile(activeProfile.id, (profile) => ({
+        ...profile,
+        processName: selected.name
+      }));
+    }
   };
 
   const updateTrainer = (id: string, patch: Partial<TrainerEntry>) => {
@@ -403,7 +671,9 @@ export default function App() {
       availableModules[0]?.name ??
       "";
 
-    const moduleName = window.prompt("Signature module", entry.signature?.moduleName ?? defaultModule)?.trim();
+    const moduleName = window
+      .prompt("Signature module", entry.signature?.moduleName ?? defaultModule)
+      ?.trim();
     if (!moduleName) return;
 
     const pattern = window
@@ -431,7 +701,11 @@ export default function App() {
     if (!occurrenceInput) return;
 
     const occurrenceNumber = Number.parseInt(occurrenceInput, 10);
-    if (!Number.isInteger(occurrenceNumber) || occurrenceNumber < 1 || occurrenceNumber > 128) {
+    if (
+      !Number.isInteger(occurrenceNumber) ||
+      occurrenceNumber < 1 ||
+      occurrenceNumber > 128
+    ) {
       setStatus("Signature occurrence must be between 1 and 128");
       return;
     }
@@ -511,7 +785,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v0.3.0</div>
+          <div className="subtitle">offline trainer toolkit · v0.4.0</div>
         </div>
         <div className="status-pill">
           <span className="status-dot" />
@@ -566,6 +840,33 @@ export default function App() {
         </aside>
 
         <section className="content">
+          <div className="profile-bar">
+            <div className="profile-select-wrap">
+              <span className="eyebrow">PROFILE</span>
+              <select
+                className="input profile-select"
+                value={activeProfile?.id ?? ""}
+                onChange={(event) => setActiveProfileId(event.target.value)}
+              >
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+              <span className="profile-summary">
+                {activeProfile?.processName || "No game bound"} · {trainers.length} entries
+              </span>
+            </div>
+            <div className="profile-actions">
+              <button onClick={createProfile}>New</button>
+              <button onClick={renameProfile}>Rename</button>
+              <button onClick={() => void importProfile()}>Import</button>
+              <button onClick={() => void exportProfile()}>Export</button>
+              <button className="danger" onClick={deleteProfile}>Delete</button>
+            </div>
+          </div>
+
           <div className="target-card">
             <div>
               <span className="eyebrow">SELECTED PROCESS</span>
@@ -674,15 +975,17 @@ export default function App() {
               <div className="panel-heading">
                 <div>
                   <span className="eyebrow">TRAINER</span>
-                  <h2>Saved cheats</h2>
+                  <h2>{activeProfile?.name ?? "Saved cheats"}</h2>
                 </div>
-                <span className="match-count">{trainers.length}</span>
+                <span className="match-count">
+                  {trainers.filter((entry) => entry.enabled).length} active
+                </span>
               </div>
 
               <div className="trainer-list">
                 {trainers.length === 0 && (
                   <div className="empty">
-                    Save a scan result to turn it into a trainer entry.
+                    Save a scan result to this profile to create a trainer entry.
                   </div>
                 )}
 
@@ -709,9 +1012,6 @@ export default function App() {
                       {entry.signature ? (
                         <span className="signature-badge">
                           AOB · {entry.signature.moduleName} · {entry.signature.pattern}
-                          {entry.signature.matchOffset === "0x0" || entry.signature.matchOffset === "0"
-                            ? ""
-                            : ` · offset ${entry.signature.matchOffset}`}
                         </span>
                       ) : entry.pointerChain ? (
                         <span className="stable-badge">
@@ -725,6 +1025,7 @@ export default function App() {
                       ) : (
                         <span className="raw-badge">RAW ADDRESS</span>
                       )}
+                      {entry.hotkey && <span className="hotkey-badge">{entry.hotkey}</span>}
                     </div>
 
                     <div className="trainer-edit">
@@ -751,6 +1052,7 @@ export default function App() {
                         <option value="f32">f32</option>
                         <option value="f64">f64</option>
                       </select>
+                      <button onClick={() => configureHotkey(entry)}>Hotkey</button>
                       <button onClick={() => void stabilizeTrainer(entry)}>Pointer</button>
                       <button onClick={() => void configureSignature(entry)}>Signature</button>
                       {(entry.pointerChain || entry.signature) && (

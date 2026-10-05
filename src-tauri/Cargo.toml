@@ -1,6 +1,6 @@
 [package]
 name = "recode"
-version = "0.3.0"
+version = "0.4.0"
 description = "Offline single-player game trainer toolkit"
 authors = ["bxane-dev"]
 edition = "2021"
@@ -16,6 +16,8 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-global-shortcut = "2"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows-sys = { version = "0.59", features = [

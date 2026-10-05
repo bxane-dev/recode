@@ -60,6 +60,23 @@ export interface TrainerEntry {
   valueType: ValueType;
   value: string;
   enabled: boolean;
+  hotkey?: string;
   pointerChain?: PointerChainConfig;
   signature?: SignatureConfig;
+}
+
+export interface TrainerProfile {
+  id: string;
+  name: string;
+  processName: string;
+  trainers: TrainerEntry[];
+  createdAt: string;
+  updatedAt: string;
+  formatVersion: 1;
+}
+
+export interface TrainerProfileFile {
+  schema: "recode.trainer-profile";
+  version: 1;
+  profile: TrainerProfile;
 }

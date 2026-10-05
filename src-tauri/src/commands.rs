@@ -355,6 +355,48 @@ pub fn clear_scan(state: State<'_, AppState>, session_id: u64) -> Result<(), Str
     Ok(())
 }
 
+const MAX_PROFILE_FILE_BYTES: u64 = 2 * 1024 * 1024;
+
+fn ensure_profile_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let path = std::path::PathBuf::from(path);
+    let file_name = path
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "Invalid profile file name".to_string())?;
+
+    if !file_name.to_ascii_lowercase().ends_with(".json") {
+        return Err("Recode profile files must use the .json extension".to_string());
+    }
+
+    Ok(path)
+}
+
+#[tauri::command]
+pub fn read_profile_file(path: String) -> Result<String, String> {
+    let path = ensure_profile_path(&path)?;
+    let metadata = std::fs::metadata(&path)
+        .map_err(|error| format!("Unable to inspect profile file: {error}"))?;
+
+    if metadata.len() > MAX_PROFILE_FILE_BYTES {
+        return Err("Profile file is larger than 2 MB".to_string());
+    }
+
+    std::fs::read_to_string(path)
+        .map_err(|error| format!("Unable to read profile file: {error}"))
+}
+
+#[tauri::command]
+pub fn write_profile_file(path: String, content: String) -> Result<(), String> {
+    let path = ensure_profile_path(&path)?;
+
+    if content.len() as u64 > MAX_PROFILE_FILE_BYTES {
+        return Err("Profile export is larger than 2 MB".to_string());
+    }
+
+    std::fs::write(path, content)
+        .map_err(|error| format!("Unable to write profile file: {error}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

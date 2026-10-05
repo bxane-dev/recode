@@ -78,3 +78,9 @@ export const writeValue = (
 
 export const clearScan = (sessionId: number) =>
   invoke<void>("clear_scan", { sessionId });
+
+export const readProfileFile = (path: string) =>
+  invoke<string>("read_profile_file", { path });
+
+export const writeProfileFile = (path: string, content: string) =>
+  invoke<void>("write_profile_file", { path, content });

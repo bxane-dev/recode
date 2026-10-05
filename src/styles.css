@@ -467,6 +467,7 @@ button:disabled {
 
 .stable-badge,
 .signature-badge,
+.hotkey-badge,
 .raw-badge {
   display: inline-flex;
   align-items: center;
@@ -492,6 +493,13 @@ button:disabled {
   color: #b8df9f;
 }
 
+.hotkey-badge {
+  margin-left: 6px;
+  border: 1px solid #3a424c;
+  background: #14181d;
+  color: #b7c2cf;
+}
+
 .raw-badge {
   border: 1px solid #3a3d43;
   background: #16181b;
@@ -499,5 +507,77 @@ button:disabled {
 }
 
 .trainer-edit {
-  grid-template-columns: minmax(80px, 1fr) 72px auto auto auto auto;
+  grid-template-columns: minmax(80px, 1fr) 68px auto auto auto auto auto;
+}
+
+
+.profile-bar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid #23262b;
+  border-radius: 12px;
+  background: #0d0f12;
+}
+
+.profile-select-wrap {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(180px, 300px) minmax(140px, auto);
+  align-items: center;
+  gap: 9px;
+}
+
+.profile-select {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.profile-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #747b84;
+  font-size: 10px;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.profile-actions button {
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+.trainer-meta {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+@media (max-width: 1180px) {
+  .profile-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profile-select-wrap {
+    grid-template-columns: auto 1fr;
+  }
+
+  .profile-summary {
+    grid-column: 1 / -1;
+  }
+
+  .profile-actions {
+    justify-content: flex-start;
+  }
 }

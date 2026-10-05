@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Submit a Recode JSON profile for an offline/single-player game. Valid submissions are automatically schema-checked before publication.
+        Submit a Recode JSON profile for an offline/single-player game. Valid submissions are automatically schema-checked before publication to the shared Hub.
   - type: input
     id: game
     attributes:
@@ -21,12 +21,12 @@ body:
       placeholder: game.exe
     validations:
       required: true
-  - type: input
-    id: profile_url
+  - type: textarea
+    id: profile_json
     attributes:
-      label: Raw profile URL
-      description: Paste an HTTPS raw.githubusercontent.com or gist.githubusercontent.com URL to a .json Recode profile.
-      placeholder: https://gist.githubusercontent.com/.../trainer.recode.json
+      label: Profile JSON
+      description: Paste the Recode profile JSON copied by the AI Builder / Submit to Hub button.
+      render: json
     validations:
       required: true
   - type: input

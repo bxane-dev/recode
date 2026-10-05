@@ -18,25 +18,21 @@ function cleanText(value, max = 160) {
   return value.replace(/[\r\n\0]/g, " ").trim().slice(0, max);
 }
 
+function stripFence(value) {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`$/i);
+  return match ? match[1].trim() : trimmed;
+}
+
 const game = cleanText(field("Game"), 120);
 const processName = cleanText(field("Process executable"), 120);
-const profileUrl = field("Raw profile URL").trim();
+const rawProfile = stripFence(field("Profile JSON"));
 const description = cleanText(field("Description"), 240);
 
-if (!game || !processName || !profileUrl) throw new Error("Missing required issue fields");
+if (!game || !processName || !rawProfile) throw new Error("Missing required issue fields");
+if (Buffer.byteLength(rawProfile, "utf8") > 512 * 1024) throw new Error("Profile JSON is larger than 512 KB");
 
-const url = new URL(profileUrl);
-if (url.protocol !== "https:" || !["raw.githubusercontent.com", "gist.githubusercontent.com"].includes(url.hostname)) {
-  throw new Error("Profile URL must be an HTTPS GitHub Raw or Gist URL");
-}
-if (!url.pathname.toLowerCase().endsWith(".json")) throw new Error("Hub submissions must be JSON Recode profiles");
-
-const response = await fetch(url, { headers: { Accept: "application/json" } });
-if (!response.ok) throw new Error(`Profile download failed: HTTP ${response.status}`);
-const raw = await response.text();
-if (Buffer.byteLength(raw, "utf8") > 2 * 1024 * 1024) throw new Error("Profile is larger than 2 MB");
-
-const parsed = JSON.parse(raw);
+const parsed = JSON.parse(rawProfile);
 if (parsed?.schema !== "recode.trainer-profile" || parsed?.version !== 1 || !parsed.profile) {
   throw new Error("Invalid Recode trainer profile envelope");
 }
@@ -74,6 +70,7 @@ const trainers = source.trainers.map((entry, index) => {
       !Array.isArray(entry.pointerChain.offsets) ||
       entry.pointerChain.offsets.length > 16
     ) throw new Error(`Trainer ${index + 1} has an invalid pointer chain`);
+
     clean.pointerChain = {
       moduleName: entry.pointerChain.moduleName.slice(0, 160),
       baseOffset: entry.pointerChain.baseOffset.slice(0, 40),
@@ -88,6 +85,7 @@ const trainers = source.trainers.map((entry, index) => {
       typeof entry.signature.matchOffset !== "string" ||
       typeof entry.signature.occurrence !== "number"
     ) throw new Error(`Trainer ${index + 1} has an invalid signature`);
+
     clean.signature = {
       moduleName: entry.signature.moduleName.slice(0, 160),
       pattern: entry.signature.pattern.slice(0, 1000),

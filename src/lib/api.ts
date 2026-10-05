@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  InstalledGame,
   PointerResolution,
   ProcessInfo,
   ProcessModule,
@@ -7,6 +8,9 @@ import type {
   SignatureResolution,
   ValueType
 } from "../types";
+
+export const scanInstalledGames = () =>
+  invoke<InstalledGame[]>("scan_installed_games");
 
 export const listProcesses = () => invoke<ProcessInfo[]>("list_processes");
 

@@ -1,5 +1,19 @@
 export type ValueType = "i32" | "u32" | "i64" | "u64" | "f32" | "f64";
 
+export interface InstalledGame {
+  id: string;
+  store: "Steam" | "GOG" | "Epic Games" | string;
+  name: string;
+  installPath: string;
+  executable: string | null;
+}
+
+export interface RecodeSettings {
+  autoDetectStores: boolean;
+  autoDownloadCompatible: boolean;
+  rememberCheatSelection: boolean;
+}
+
 export interface ProcessInfo {
   pid: number;
   name: string;

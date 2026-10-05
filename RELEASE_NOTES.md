@@ -1,26 +1,19 @@
-# Recode v1.5.0
+# Recode v1.6.0
 
-Recode 1.5 adds a Framework Bridge for common offline-game mod frameworks.
+Recode 1.6 redesigns Recode Hub into a game-first community browser inspired by modern mod platforms while keeping Recode's own visual identity.
 
-## Frameworks
+## Hub 2.0
+- Browse / Installed / Updates / Favorites
+- Game pages for detected Steam, GOG and Epic titles
+- Search, categories, verification filter and sorting
+- Trainer cards with versions, authors, tags, frameworks, option counts and activity stats
+- Local favorites and install/update tracking
+- Supabase download counters and richer catalog metadata
+- 1-click install/update remains the primary action
 
-- REFramework
-- BepInEx
-- MelonLoader
-- UE4SS
-- SMAPI
-
-Recode detects installed frameworks from the selected game's files and running executable location. Native `.rc` profiles can declare framework requirements, and one-click apply keeps trainer entries disabled when a required framework is missing.
-
-The Framework Bridge is dependency-aware rather than a generic arbitrary-code executor. Framework-specific scripts/plugins stay under their framework's normal installation model, while Recode handles detection, compatibility metadata, trainer selection, Hub distribution, and data-only trainer application.
-
-## Existing v1.4 features
-
-- Native `.rc` files
-- Compatible `.CT` → `.rc` conversion
-- Steam/GOG/Epic detection
-- Recode Hub + Supabase
+## Existing
+- Native .rc trainers and .CT → .rc conversion
+- Framework Bridge
 - AI Builder
-- One-click apply
-- Optional remembered cheat selections
-- Windows/Linux installers and updater wiring
+- Supabase community publishing
+- Windows/Linux desktop installers

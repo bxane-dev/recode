@@ -25,6 +25,14 @@ create table if not exists public.recode_profiles (
   verified boolean not null default false,
   published boolean not null default false,
   source text not null default 'community',
+  category text not null default 'Gameplay',
+  version text not null default '1.0.0',
+  game_version text,
+  tags text[] not null default '{}',
+  downloads bigint not null default 0 check (downloads >= 0),
+  endorsements bigint not null default 0 check (endorsements >= 0),
+  changelog text not null default '',
+  featured boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint recode_profiles_profile_schema
@@ -64,6 +72,9 @@ create index if not exists recode_games_process_names_gin
 create index if not exists recode_profiles_game_published_idx
   on public.recode_profiles (game_id, published, verified);
 
+create index if not exists recode_profiles_published_updated_idx
+  on public.recode_profiles (published, updated_at desc);
+
 create index if not exists recode_submissions_status_idx
   on public.recode_submissions (status, submitted_at desc);
 
@@ -93,3 +104,19 @@ create policy "public can read published profiles"
 -- Submissions are intentionally not writable through the public Data API.
 -- They should be created by a validated Edge Function or trusted backend only.
 -- Never expose a service-role key in the Recode desktop client.
+
+
+create or replace function public.recode_increment_download(profile_id uuid)
+returns bigint
+language sql
+security definer
+set search_path = public
+as $$
+  update public.recode_profiles
+  set downloads = downloads + 1
+  where id = profile_id and published = true
+  returning downloads;
+$$;
+
+revoke all on function public.recode_increment_download(uuid) from public, anon, authenticated;
+grant execute on function public.recode_increment_download(uuid) to service_role;

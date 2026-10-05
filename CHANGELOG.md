@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.6.0 — 2026-10-05
+
+### Recode Hub 2.0
+- Nexus-style game-first Hub browser while retaining Recode branding.
+- Browse, Installed, Updates, and Favorites tabs.
+- Search by trainer, author, description, tags, and framework.
+- Category and verified-only filters.
+- Sort by recently updated, newest, downloads, endorsements, or title.
+- Rich trainer cards with author, category, version, game version, framework tags, option count, download/endorsement counts, and update date.
+- Local install registry and update detection by Hub profile version.
+- Local favorites.
+- Supabase metadata for categories, versions, tags, download counts, endorsements, changelog, and featured status.
+- Server-side download counter for successful Supabase Hub installs.
+- All-games Hub browsing when no local game is selected.
+- Existing 1-click install/apply, .CT conversion, automatic compatible-profile caching, and GitHub fallback remain available.
+
+
 ## 1.5.0 — 2026-10-05
 
 ### Added

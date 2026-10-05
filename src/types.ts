@@ -133,7 +133,18 @@ export interface HubEntry {
   profileUrl: string;
   sourceUrl?: string;
   verified?: boolean;
+  featured?: boolean;
+  category?: string;
+  version?: string;
+  gameVersion?: string;
+  downloads?: number;
+  endorsements?: number;
+  trainerCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  changelog?: string;
   tags?: string[];
+  frameworks?: string[];
 }
 
 export interface HubCatalog {

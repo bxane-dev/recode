@@ -4,8 +4,19 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { readProfileFile, writeProfileFile } from "../lib/api";
 import { parseCheatEngineTable } from "../lib/cheatEngine";
 import { loadHubCatalog, loadRemoteTrainer } from "../lib/hub";
-import { loadSupabaseProfile, searchSupabaseHub } from "../lib/hubDb";
+import {
+  browseSupabaseHub,
+  loadSupabaseProfile,
+  searchSupabaseHub,
+  trackSupabaseDownload
+} from "../lib/hubDb";
 import { cacheHubProfile, getCachedHubProfile } from "../lib/hubCache";
+import {
+  loadHubFavorites,
+  loadHubInstalls,
+  recordHubInstall,
+  saveHubFavorites
+} from "../lib/hubState";
 import { profileToFile } from "../lib/profiles";
 import type {
   HubEntry,
@@ -23,8 +34,28 @@ interface Props {
   onStatus: (message: string) => void;
 }
 
+type HubTab = "browse" | "installed" | "updates" | "favorites";
+type HubSort = "updated" | "new" | "downloads" | "endorsed" | "title";
+
 function normalizeProcess(value: string) {
   return value.trim().toLowerCase().replace(/\.(exe|bin)$/i, "");
+}
+
+function compactNumber(value = 0) {
+  return new Intl.NumberFormat(undefined, {
+    notation: value >= 1000 ? "compact" : "standard",
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
+function dateLabel(value?: string) {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleDateString();
+}
+
+function cardInitial(title: string) {
+  return title.trim().slice(0, 2).toUpperCase() || "RC";
 }
 
 export default function HubPanel({
@@ -38,6 +69,13 @@ export default function HubPanel({
   const [entries, setEntries] = useState<HubEntry[]>([]);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<HubTab>("browse");
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("All");
+  const [sort, setSort] = useState<HubSort>("updated");
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [installs, setInstalls] = useState(() => loadHubInstalls());
+  const [favorites, setFavorites] = useState(() => loadHubFavorites());
 
   const selectedTarget =
     selected?.name ||
@@ -45,36 +83,124 @@ export default function HubPanel({
     "";
   const selectedGameName = selectedGame?.name || selectedTarget;
 
-  const matches = useMemo(() => {
+  const isCompatible = (entry: HubEntry) => {
+    if (!selectedTarget && !selectedGameName) return true;
     const target = normalizeProcess(selectedTarget);
     const gameTitle = selectedGameName.trim().toLowerCase();
-
-    return entries.filter((entry) => {
-      const processMatch =
-        Boolean(target) &&
-        entry.processNames.some(
-          (processName) => normalizeProcess(processName) === target
-        );
-      const titleMatch =
-        Boolean(gameTitle) && entry.game.trim().toLowerCase() === gameTitle;
-      return processMatch || titleMatch;
-    });
-  }, [entries, selectedTarget, selectedGameName]);
-
-  const search = async () => {
-    if (!selectedTarget && !selectedGame) {
-      onStatus(
-        "Select a detected game or running process before searching Recode Hub"
+    const processMatch =
+      Boolean(target) &&
+      entry.processNames.some(
+        (processName) => normalizeProcess(processName) === target
       );
-      return;
+    const titleMatch =
+      Boolean(gameTitle) && entry.game.trim().toLowerCase() === gameTitle;
+    return processMatch || titleMatch;
+  };
+
+  const compatibleEntries = useMemo(
+    () => entries.filter(isCompatible),
+    [entries, selectedTarget, selectedGameName]
+  );
+
+  const categories = useMemo(
+    () => [
+      "All",
+      ...Array.from(
+        new Set(
+          compatibleEntries
+            .map((entry) => entry.category || "Gameplay")
+            .filter(Boolean)
+        )
+      ).sort()
+    ],
+    [compatibleEntries]
+  );
+
+  const updateIds = useMemo(() => {
+    const current = new Map(entries.map((entry) => [entry.id, entry]));
+    return new Set(
+      installs
+        .filter((installed) => {
+          const latest = current.get(installed.id);
+          return latest && (latest.version || "1.0.0") !== installed.version;
+        })
+        .map((installed) => installed.id)
+    );
+  }, [entries, installs]);
+
+  const visibleEntries = useMemo(() => {
+    const installedIds = new Set(installs.map((item) => item.id));
+    let source: HubEntry[];
+
+    if (tab === "installed") {
+      source = installs.map(
+        (item) => entries.find((entry) => entry.id === item.id) || item.entry
+      );
+    } else if (tab === "updates") {
+      source = installs
+        .filter((item) => updateIds.has(item.id))
+        .map((item) => entries.find((entry) => entry.id === item.id) || item.entry);
+    } else if (tab === "favorites") {
+      source = entries.filter((entry) => favorites.has(entry.id));
+    } else {
+      source = compatibleEntries;
     }
 
+    const needle = query.trim().toLowerCase();
+    source = source.filter((entry) => {
+      if (
+        category !== "All" &&
+        (entry.category || "Gameplay") !== category
+      ) {
+        return false;
+      }
+      if (verifiedOnly && !entry.verified) return false;
+      if (!needle) return true;
+      return [
+        entry.title,
+        entry.game,
+        entry.author || "",
+        entry.description || "",
+        ...(entry.tags || []),
+        ...(entry.frameworks || [])
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(needle);
+    });
+
+    return [...source].sort((a, b) => {
+      if (sort === "downloads") return (b.downloads || 0) - (a.downloads || 0);
+      if (sort === "endorsed") return (b.endorsements || 0) - (a.endorsements || 0);
+      if (sort === "new") {
+        return Date.parse(b.createdAt || "") - Date.parse(a.createdAt || "");
+      }
+      if (sort === "title") return a.title.localeCompare(b.title);
+      return Date.parse(b.updatedAt || "") - Date.parse(a.updatedAt || "");
+    });
+  }, [
+    tab,
+    compatibleEntries,
+    entries,
+    installs,
+    updateIds,
+    favorites,
+    query,
+    category,
+    verifiedOnly,
+    sort
+  ]);
+
+  const search = async (automatic = false) => {
     setLoading(true);
     try {
       let combined: HubEntry[] = [];
 
       try {
-        combined = await searchSupabaseHub(selectedTarget, selectedGame);
+        combined =
+          selectedTarget || selectedGame
+            ? await searchSupabaseHub(selectedTarget, selectedGame)
+            : await browseSupabaseHub();
       } catch {
         combined = [];
       }
@@ -84,27 +210,27 @@ export default function HubPanel({
         const seen = new Set(combined.map((entry) => entry.id));
         combined = [
           ...combined,
-          ...catalog.entries.filter((entry) => !seen.has(entry.id))
+          ...catalog.entries
+            .filter((entry) => !seen.has(entry.id))
+            .map((entry) => ({
+              ...entry,
+              category: entry.category || "Gameplay",
+              version: entry.version || "1.0.0",
+              downloads: entry.downloads || 0,
+              endorsements: entry.endorsements || 0
+            }))
         ];
       }
 
       setEntries(combined);
 
-      const target = normalizeProcess(selectedTarget);
-      const gameTitle = selectedGameName.trim().toLowerCase();
-      const compatible = combined.filter((entry) => {
-        const processMatch =
-          Boolean(target) &&
-          entry.processNames.some(
-            (processName) => normalizeProcess(processName) === target
-          );
-        const titleMatch =
-          Boolean(gameTitle) && entry.game.trim().toLowerCase() === gameTitle;
-        return processMatch || titleMatch;
-      });
-
+      const compatible = combined.filter(isCompatible);
       let cached = 0;
-      if (autoDownloadCompatible) {
+      if (
+        autoDownloadCompatible &&
+        (selectedTarget || selectedGame) &&
+        compatible.length
+      ) {
         for (const entry of compatible.slice(0, 12)) {
           if (getCachedHubProfile(entry.id)) continue;
           try {
@@ -117,19 +243,20 @@ export default function HubPanel({
             cacheHubProfile(entry.id, profile);
             cached += 1;
           } catch {
-            // Keep search results even when one remote trainer cannot be cached.
+            // One broken community item should not break the catalog.
           }
         }
       }
 
-      onStatus(
-        compatible.length
-          ? "Recode Hub found " +
-              compatible.length +
-              " compatible trainer profile(s)" +
-              (cached ? " · cached " + cached + " for 1-click use" : "")
-          : "No indexed Recode Hub profile matches this game yet"
-      );
+      if (!automatic) {
+        onStatus(
+          selectedGameName
+            ? `Loaded ${compatible.length} Hub item(s) for ${selectedGameName}${
+                cached ? ` · cached ${cached}` : ""
+              }`
+            : `Loaded ${combined.length} published Hub item(s)`
+        );
+      }
     } catch (error) {
       onStatus("Hub search failed: " + String(error));
     } finally {
@@ -138,23 +265,23 @@ export default function HubPanel({
   };
 
   useEffect(() => {
-    if (autoDownloadCompatible && (selectedTarget || selectedGame)) {
-      void search();
+    void search(true);
+  }, []);
+
+  useEffect(() => {
+    if (selectedTarget || selectedGame) {
+      void search(true);
     }
-  }, [selectedTarget, selectedGame?.id, autoDownloadCompatible]);
+  }, [selectedTarget, selectedGame?.id]);
 
   const searchCheatEngineWeb = async () => {
     if (!selectedGameName) {
       onStatus("Select a game before searching public Cheat Engine pages");
       return;
     }
-
     const query = encodeURIComponent(
-      'site:cheatengine.org "' +
-        selectedGameName +
-        '" Cheat Engine table CT'
+      'site:cheatengine.org "' + selectedGameName + '" Cheat Engine table CT'
     );
-
     await openUrl("https://www.google.com/search?q=" + query);
     onStatus("Opened Cheat Engine web results for " + selectedGameName);
   };
@@ -171,7 +298,6 @@ export default function HubPanel({
 
       const raw = await readProfileFile(path);
       const profile = parseCheatEngineTable(raw, selectedTarget);
-
       const safeName =
         (selectedGameName || "trainer")
           .replace(/[^a-z0-9-_]+/gi, "-")
@@ -189,7 +315,6 @@ export default function HubPanel({
         destination,
         JSON.stringify(profileToFile(profile), null, 2)
       );
-
       onInstall(profile, false);
       onStatus("Converted .CT to .rc: " + profile.name);
     } catch (error) {
@@ -219,11 +344,40 @@ export default function HubPanel({
       }
 
       onInstall(profile, true);
+      recordHubInstall(entry);
+      setInstalls(loadHubInstalls());
+
+      if (entry.profileUrl.startsWith("supabase://")) {
+        void trackSupabaseDownload(entry.id).catch(() => {});
+        setEntries((current) =>
+          current.map((item) =>
+            item.id === entry.id
+              ? { ...item, downloads: (item.downloads || 0) + 1 }
+              : item
+          )
+        );
+      }
+
+      onStatus(
+        `${updateIds.has(entry.id) ? "Updated" : "Installed"} ${entry.title} v${
+          entry.version || "1.0.0"
+        }`
+      );
     } catch (error) {
       onStatus("Hub install failed: " + String(error));
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleFavorite = (id: string) => {
+    setFavorites((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      saveHubFavorites(next);
+      return next;
+    });
   };
 
   const importUrl = async () => {
@@ -237,10 +391,7 @@ export default function HubPanel({
 
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(
-        remoteUrl.trim(),
-        selectedTarget
-      );
+      const profile = await loadRemoteTrainer(remoteUrl.trim(), selectedTarget);
       onInstall(profile, true);
       setRemoteUrl("");
     } catch (error) {
@@ -250,72 +401,204 @@ export default function HubPanel({
     }
   };
 
-  return (
-    <section className="hub-card">
-      <div className="hub-heading">
-        <div>
-          <span className="eyebrow">RECODE HUB</span>
-          <h2>1-click trainers</h2>
-          <p>
-            Recode .rc profiles and compatible Cheat Engine table data for the
-            selected offline/single-player game.
-          </p>
-        </div>
+  const installedIds = new Set(installs.map((item) => item.id));
+  const heroTitle = selectedGameName || "Browse Recode Hub";
+  const heroSubtitle = selectedGame
+    ? `${selectedGame.store} · ${compatibleEntries.length} published item(s)`
+    : "Community .rc trainers for offline/single-player games";
 
+  return (
+    <section className="hub-market">
+      <div className="hub-market-hero">
+        <div className="hub-game-mark">{cardInitial(heroTitle)}</div>
+        <div className="hub-hero-copy">
+          <span className="eyebrow">RECODE HUB</span>
+          <h2>{heroTitle}</h2>
+          <p>{heroSubtitle}</p>
+          <div className="hub-hero-stats">
+            <span>{compatibleEntries.length} trainers</span>
+            <span>{installs.length} installed</span>
+            <span>{updateIds.size} updates</span>
+          </div>
+        </div>
         <div className="hub-heading-actions">
           <button onClick={() => void searchCheatEngineWeb()}>
             Cheat Engine Web
           </button>
-          <button onClick={() => void convertCtToRc()}>
-            Convert .CT → .rc
-          </button>
+          <button onClick={() => void convertCtToRc()}>Convert .CT → .rc</button>
           <button
             className="primary"
             disabled={loading}
-            onClick={() => void search()}
+            onClick={() => void search(false)}
           >
-            {loading ? "Searching…" : "Search game"}
+            {loading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>
 
-      {matches.length > 0 && (
-        <div className="hub-results">
-          {matches.map((entry) => (
-            <article className="hub-entry" key={entry.id}>
-              <div>
-                <strong>{entry.title}</strong>
-                <small>
-                  {entry.game}
-                  {entry.author ? " · " + entry.author : ""}
-                  {entry.verified ? " · VERIFIED" : ""}
-                </small>
-                {entry.description && <p>{entry.description}</p>}
-              </div>
+      <div className="hub-tabs">
+        {(["browse", "installed", "updates", "favorites"] as HubTab[]).map(
+          (value) => (
+            <button
+              key={value}
+              className={tab === value ? "active" : ""}
+              onClick={() => setTab(value)}
+            >
+              {value === "browse"
+                ? "Browse"
+                : value === "installed"
+                  ? `Installed (${installs.length})`
+                  : value === "updates"
+                    ? `Updates (${updateIds.size})`
+                    : `Favorites (${favorites.size})`}
+            </button>
+          )
+        )}
+      </div>
 
-              <button
-                className="primary"
-                disabled={loading}
-                onClick={() => void installEntry(entry)}
-              >
-                1-Click Apply
-              </button>
-            </article>
+      <div className="hub-toolbar">
+        <input
+          className="input"
+          placeholder="Search title, author, description, tags, framework…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <select
+          className="input"
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+        >
+          {categories.map((value) => (
+            <option key={value} value={value}>
+              {value}
+            </option>
           ))}
+        </select>
+        <select
+          className="input"
+          value={sort}
+          onChange={(event) => setSort(event.target.value as HubSort)}
+        >
+          <option value="updated">Recently updated</option>
+          <option value="new">Newest</option>
+          <option value="downloads">Most downloaded</option>
+          <option value="endorsed">Most endorsed</option>
+          <option value="title">Title</option>
+        </select>
+        <label className="hub-verified-filter">
+          <input
+            type="checkbox"
+            checked={verifiedOnly}
+            onChange={(event) => setVerifiedOnly(event.target.checked)}
+          />
+          Verified only
+        </label>
+      </div>
+
+      {visibleEntries.length ? (
+        <div className="hub-mod-grid">
+          {visibleEntries.map((entry) => {
+            const installed = installedIds.has(entry.id);
+            const hasUpdate = updateIds.has(entry.id);
+            return (
+              <article className="hub-mod-card" key={entry.id}>
+                <div className="hub-mod-cover">
+                  <span>{cardInitial(entry.title)}</span>
+                  <div className="hub-cover-badges">
+                    {entry.featured && <b>FEATURED</b>}
+                    {entry.verified && <b>VERIFIED</b>}
+                  </div>
+                </div>
+
+                <div className="hub-mod-body">
+                  <div className="hub-mod-kicker">
+                    <span>{entry.category || "Gameplay"}</span>
+                    <span>v{entry.version || "1.0.0"}</span>
+                  </div>
+                  <h3>{entry.title}</h3>
+                  <div className="hub-mod-author">
+                    {entry.game}
+                    {entry.author ? " · by " + entry.author : ""}
+                  </div>
+                  <p>
+                    {entry.description ||
+                      "Community Recode trainer profile for this game."}
+                  </p>
+
+                  <div className="hub-chip-row">
+                    {(entry.frameworks || []).slice(0, 3).map((framework) => (
+                      <span className="hub-chip" key={framework}>
+                        {framework}
+                      </span>
+                    ))}
+                    {(entry.tags || [])
+                      .filter((tag) => tag !== "supabase")
+                      .slice(0, 3)
+                      .map((tag) => (
+                        <span className="hub-chip muted" key={tag}>
+                          {tag}
+                        </span>
+                      ))}
+                  </div>
+
+                  <div className="hub-mod-stats">
+                    <span>↓ {compactNumber(entry.downloads)}</span>
+                    <span>♥ {compactNumber(entry.endorsements)}</span>
+                    <span>{entry.trainerCount || 0} options</span>
+                    <span>Updated {dateLabel(entry.updatedAt)}</span>
+                  </div>
+
+                  <div className="hub-mod-actions">
+                    <button
+                      className={favorites.has(entry.id) ? "favorite active" : "favorite"}
+                      onClick={() => toggleFavorite(entry.id)}
+                      title="Favorite"
+                    >
+                      {favorites.has(entry.id) ? "♥" : "♡"}
+                    </button>
+                    <button
+                      className="primary"
+                      disabled={loading}
+                      onClick={() => void installEntry(entry)}
+                    >
+                      {hasUpdate
+                        ? "Update"
+                        : installed
+                          ? "Reinstall"
+                          : "1-Click Install"}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="hub-empty">
+          {tab === "updates"
+            ? "No trainer updates are available."
+            : tab === "installed"
+              ? "No Hub trainers have been installed yet."
+              : tab === "favorites"
+                ? "Favorite trainers to keep them here."
+                : "No trainers match the current filters."}
         </div>
       )}
 
-      <div className="hub-url">
-        <input
-          className="input"
-          placeholder="Direct .rc, .json, or .CT raw GitHub/Gist URL"
-          value={remoteUrl}
-          onChange={(event) => setRemoteUrl(event.target.value)}
-        />
-        <button disabled={loading} onClick={() => void importUrl()}>
-          Import + Apply
-        </button>
-      </div>
+      <details className="hub-tools">
+        <summary>Advanced import tools</summary>
+        <div className="hub-url">
+          <input
+            className="input"
+            placeholder="Direct .rc, .json, or .CT raw GitHub/Gist URL"
+            value={remoteUrl}
+            onChange={(event) => setRemoteUrl(event.target.value)}
+          />
+          <button disabled={loading} onClick={() => void importUrl()}>
+            Import + Apply
+          </button>
+        </div>
+      </details>
     </section>
   );
 }

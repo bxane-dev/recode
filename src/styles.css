@@ -998,3 +998,322 @@ button:disabled {
 .trainer-number-box {
   min-width: 0;
 }
+
+
+/* Recode Hub 2.0 — game-first community browser */
+.hub-market {
+  margin-bottom: 16px;
+  border: 1px solid #282b30;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0d0f12;
+}
+
+.hub-market-hero {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-bottom: 1px solid #282b30;
+  background:
+    linear-gradient(120deg, rgba(154,255,92,.09), transparent 45%),
+    #111418;
+}
+
+.hub-game-mark {
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #3b4237;
+  border-radius: 12px;
+  background: linear-gradient(145deg, #20251d, #10130f);
+  color: #b8ff8d;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.hub-hero-copy h2 {
+  margin: 3px 0 4px;
+  font-size: 20px;
+}
+
+.hub-hero-copy p {
+  margin: 0;
+  color: #858b94;
+  font-size: 11px;
+}
+
+.hub-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 9px;
+  color: #a7adb5;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.hub-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 0 14px;
+  border-bottom: 1px solid #24272c;
+  background: #0b0d10;
+}
+
+.hub-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 11px 12px 9px;
+  background: transparent;
+  color: #838a93;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.hub-tabs button.active {
+  border-bottom-color: #9aff5c;
+  color: #eff4ea;
+}
+
+.hub-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 160px 180px auto;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #22262b;
+}
+
+.hub-toolbar .input {
+  padding: 8px 10px;
+  font-size: 10px;
+}
+
+.hub-verified-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: #989fa8;
+  font-size: 10px;
+}
+
+.hub-verified-filter input {
+  accent-color: #9aff5c;
+}
+
+.hub-mod-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 11px;
+  padding: 14px;
+}
+
+.hub-mod-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #2a2e34;
+  border-radius: 11px;
+  background: #111419;
+  transition: transform 120ms ease, border-color 120ms ease;
+}
+
+.hub-mod-card:hover {
+  transform: translateY(-1px);
+  border-color: #41473d;
+}
+
+.hub-mod-cover {
+  height: 78px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 11px;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(154,255,92,.13), transparent 35%),
+    linear-gradient(135deg, #1b201a, #111418 55%, #15171b);
+}
+
+.hub-mod-cover > span {
+  color: #b4c5a9;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: .08em;
+}
+
+.hub-cover-badges {
+  display: flex;
+  gap: 5px;
+}
+
+.hub-cover-badges b {
+  padding: 4px 6px;
+  border: 1px solid #415137;
+  border-radius: 5px;
+  background: rgba(13,16,12,.75);
+  color: #aee48e;
+  font-size: 7px;
+  letter-spacing: .08em;
+}
+
+.hub-mod-body {
+  padding: 11px;
+}
+
+.hub-mod-kicker,
+.hub-mod-stats,
+.hub-mod-actions {
+  display: flex;
+  align-items: center;
+}
+
+.hub-mod-kicker {
+  justify-content: space-between;
+  color: #828a93;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: .09em;
+}
+
+.hub-mod-body h3 {
+  margin: 6px 0 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.hub-mod-author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #8c949e;
+  font-size: 9px;
+}
+
+.hub-mod-body p {
+  height: 34px;
+  margin: 8px 0;
+  overflow: hidden;
+  color: #8d949d;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.hub-chip-row {
+  min-height: 22px;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.hub-chip {
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 5px;
+  border: 1px solid #3c4934;
+  border-radius: 5px;
+  background: #151b13;
+  color: #a8c896;
+  font-size: 7px;
+}
+
+.hub-chip.muted {
+  border-color: #333841;
+  background: #15181c;
+  color: #929aa4;
+}
+
+.hub-mod-stats {
+  gap: 9px;
+  margin-top: 9px;
+  padding-top: 8px;
+  border-top: 1px solid #23272d;
+  color: #747c86;
+  font-size: 8px;
+  flex-wrap: wrap;
+}
+
+.hub-mod-actions {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.hub-mod-actions .primary {
+  flex: 1;
+  padding: 7px 9px;
+  font-size: 9px;
+}
+
+.hub-mod-actions .favorite {
+  width: 34px;
+  padding: 7px 0;
+  font-size: 14px;
+}
+
+.hub-mod-actions .favorite.active {
+  border-color: #5a4930;
+  color: #f0c77d;
+}
+
+.hub-empty {
+  margin: 14px;
+  padding: 28px;
+  border: 1px dashed #31363d;
+  border-radius: 10px;
+  color: #737b84;
+  text-align: center;
+  font-size: 11px;
+}
+
+.hub-tools {
+  margin: 0 14px 14px;
+  color: #7e858e;
+  font-size: 9px;
+}
+
+.hub-tools summary {
+  cursor: pointer;
+  user-select: none;
+}
+
+.hub-tools .hub-url {
+  margin-top: 9px;
+}
+
+@media (max-width: 1280px) {
+  .hub-mod-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1000px) {
+  .hub-market-hero {
+    grid-template-columns: 60px minmax(0, 1fr);
+  }
+
+  .hub-heading-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .hub-game-mark {
+    width: 60px;
+    height: 60px;
+  }
+
+  .hub-toolbar {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hub-mod-grid {
+    grid-template-columns: 1fr;
+  }
+}

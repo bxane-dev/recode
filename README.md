@@ -86,6 +86,12 @@ Hotkeys use Tauri's native global-shortcut support. Examples include `F6`, `Cont
 
 ## Recode Hub and trainer compatibility
 
+### Hub 2.0
+
+Recode Hub uses a game-first community browser with Browse, Installed, Updates and Favorites views. Published trainers can carry category, version, game-version, tags, framework requirements, verification state, download/endorsement counters and changelog metadata. Recode tracks installed Hub versions locally and surfaces newer published versions in the Updates tab.
+
+
+
 Recode includes **Recode Hub**, a data-only online trainer catalog for offline/single-player games. **Cheat Engine Web** automatically searches public Cheat Engine pages using the currently selected game's name. After selecting a game, **Search game** checks the maintained Hub index and **1-Click Apply** imports the matching profile and enables its entries.
 
 Supported import paths:

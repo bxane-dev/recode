@@ -112,7 +112,9 @@ Recode includes a dedicated Supabase schema for the shared trainer database. The
 
 Database schema: `supabase/recode_hub.sql`
 
-Client configuration:
+Recode is currently wired to the dedicated Supabase project `recode` (`qmhbkpqpaixxddasosqy`). The desktop client embeds only the project's publishable key, which is safe for public clients and remains constrained by RLS.
+
+Optional build-time overrides:
 
 ```env
 VITE_RECODE_SUPABASE_URL=...

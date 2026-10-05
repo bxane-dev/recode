@@ -6,6 +6,10 @@ authors = ["bxane-dev"]
 edition = "2021"
 license = "MIT"
 
+[lib]
+name = "recode_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

@@ -88,6 +88,14 @@ export default function AiBuilderPanel({
       return;
     }
 
+    const agreed = window.confirm(
+      "Share this trainer with the Recode community? If you continue, Recode will prepare the profile and open a GitHub submission form. Nothing is uploaded unless you submit that form."
+    );
+    if (!agreed) {
+      onStatus("Hub sharing cancelled");
+      return;
+    }
+
     try {
       const safeName =
         activeProfile.name.replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase() ||
@@ -103,7 +111,7 @@ export default function AiBuilderPanel({
       await writeProfileFile(path, JSON.stringify(profileToFile(activeProfile), null, 2));
       await navigator.clipboard.writeText(JSON.stringify(profileToFile(activeProfile), null, 2)).catch(() => {});
       await openUrl("https://github.com/bxane-dev/recode/issues/new?template=trainer_submission.yml");
-      onStatus("Profile saved and copied. Upload/paste it in the opened Hub submission form.");
+      onStatus("Profile prepared. Nothing is shared until you submit the GitHub form.");
     } catch (error) {
       onStatus(`Could not prepare Hub submission: ${String(error)}`);
     }

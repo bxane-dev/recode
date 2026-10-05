@@ -68,7 +68,7 @@ function mapProfile(
   return {
     id: profile.id,
     title: profile.title,
-    game: game?.title ?? fallbackProcess || "Unknown game",
+    game: game?.title ?? (fallbackProcess || "Unknown game"),
     processNames: game?.process_names ?? (fallbackProcess ? [fallbackProcess] : []),
     description: profile.description,
     author: profile.author_name,

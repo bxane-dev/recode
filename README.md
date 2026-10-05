@@ -106,6 +106,21 @@ The prompt explicitly tells the AI not to invent addresses or signatures. If tec
 
 **Submit to Hub** exports the active Recode profile and opens the GitHub Hub-submission form. Community submissions are automatically schema-checked and normalized by GitHub Actions before a data-only profile is committed into `hub/profiles/` and added to `hub/catalog.json`. Published profiles become available to every Recode installation through Hub search.
 
+## Recode Supabase Hub
+
+Recode includes a dedicated Supabase schema for the shared trainer database. The desktop client uses only a Supabase **publishable key** and receives read-only access to published games and profiles through RLS. Community/AI submissions are not writable through the public Data API; publishing requires explicit user consent and a validated server-side submission path.
+
+Database schema: `supabase/recode_hub.sql`
+
+Client configuration:
+
+```env
+VITE_RECODE_SUPABASE_URL=...
+VITE_RECODE_SUPABASE_PUBLISHABLE_KEY=...
+```
+
+Never place a Supabase service-role or secret key in the desktop application.
+
 ## Automatic updates
 
 Recode 1.1.0+ checks the latest GitHub Release shortly after startup. Users can also press **Check updates** in the header. When a newer signed release is available, Recode offers to download and install it, then restarts where the platform requires it.

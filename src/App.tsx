@@ -5,6 +5,7 @@ import { check } from "@tauri-apps/plugin-updater";
 import HubPanel from "./components/HubPanel";
 import AiBuilderPanel from "./components/AiBuilderPanel";
 import StoreLibraryPanel from "./components/StoreLibraryPanel";
+import FrameworkPanel from "./components/FrameworkPanel";
 import { parseCheatEngineTable } from "./lib/cheatEngine";
 import { loadSettings, saveSettings } from "./lib/settings";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@tauri-apps/plugin-global-shortcut";
 import {
   clearScan,
+  detectModFrameworks,
   findSignature,
   listModules,
   listProcesses,
@@ -33,6 +35,7 @@ import {
   saveProfiles
 } from "./lib/profiles";
 import type {
+  DetectedFramework,
   InstalledGame,
   ProcessInfo,
   ProcessModule,
@@ -101,6 +104,8 @@ export default function App() {
   const [processFilter, setProcessFilter] = useState("");
   const [selected, setSelected] = useState<ProcessInfo | null>(null);
   const [selectedGame, setSelectedGame] = useState<InstalledGame | null>(null);
+  const [detectedFrameworks, setDetectedFrameworks] = useState<DetectedFramework[]>([]);
+  const [frameworksLoading, setFrameworksLoading] = useState(false);
   const [settings, setSettings] = useState<RecodeSettings>(() => loadSettings());
   const [offlineConfirmed, setOfflineConfirmed] = useState(false);
   const [valueType, setValueType] = useState<ValueType>("i32");
@@ -194,6 +199,26 @@ export default function App() {
     }
   };
 
+  const refreshFrameworks = async () => {
+    if (!selectedGame) {
+      setDetectedFrameworks([]);
+      return;
+    }
+
+    setFrameworksLoading(true);
+    try {
+      const result = await detectModFrameworks(
+        selectedGame.installPath,
+        selected?.path ?? selectedGame.executable
+      );
+      setDetectedFrameworks(result);
+    } catch (error) {
+      setStatus("Framework detection failed: " + String(error));
+    } finally {
+      setFrameworksLoading(false);
+    }
+  };
+
   const refreshModules = async (process: ProcessInfo) => {
     if (!offlineConfirmed) {
       setModules([]);
@@ -263,6 +288,10 @@ export default function App() {
       setModules([]);
     }
   }, [selected?.pid, offlineConfirmed]);
+
+  useEffect(() => {
+    void refreshFrameworks();
+  }, [selectedGame?.id, selected?.path]);
 
   const hotkeyDefinition = useMemo(
     () =>
@@ -527,6 +556,19 @@ export default function App() {
       return;
     }
 
+    const missingFrameworks =
+      profile.frameworks?.filter(
+        (requirement) =>
+          requirement.required !== false &&
+          !detectedFrameworks.some(
+            (framework) =>
+              framework.detected &&
+              framework.id.toLowerCase() === requirement.id.toLowerCase()
+          )
+      ) ?? [];
+    const canAutoApply =
+      autoApply && offlineConfirmed && missingFrameworks.length === 0;
+
     const installed: TrainerProfile = {
       ...profile,
       id: crypto.randomUUID(),
@@ -539,7 +581,7 @@ export default function App() {
         id: crypto.randomUUID(),
         pid: selected?.pid ?? 0,
         processName: targetProcess,
-        enabled: Boolean(autoApply && offlineConfirmed)
+        enabled: Boolean(canAutoApply)
       })),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -548,9 +590,14 @@ export default function App() {
     setProfiles((current) => [...current, installed]);
     setActiveProfileId(installed.id);
     setStatus(
-      autoApply
-        ? `Applied ${installed.trainers.length} trainer entries from ${installed.name}`
-        : `Installed ${installed.name}`
+      missingFrameworks.length
+        ? "Installed " +
+            installed.name +
+            " but kept cheats disabled; missing framework(s): " +
+            missingFrameworks.map((item) => item.name || item.id).join(", ")
+        : autoApply
+          ? `Applied ${installed.trainers.length} trainer entries from ${installed.name}`
+          : `Installed ${installed.name}`
     );
   };
 
@@ -926,7 +973,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.4.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.5.0</div>
         </div>
         <div className="topbar-actions">
           <button
@@ -999,6 +1046,15 @@ export default function App() {
             onSelectProcess={attach}
             onSelectGame={setSelectedGame}
             onStatus={setStatus}
+          />
+
+          <FrameworkPanel
+            selectedGame={selectedGame}
+            selectedProcess={selected}
+            frameworks={detectedFrameworks}
+            requirements={activeProfile?.frameworks}
+            loading={frameworksLoading}
+            onRefresh={() => void refreshFrameworks()}
           />
 
           <div className="profile-bar">

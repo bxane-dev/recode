@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
+  DetectedFramework,
   InstalledGame,
   PointerResolution,
   ProcessInfo,
@@ -11,6 +12,15 @@ import type {
 
 export const scanInstalledGames = () =>
   invoke<InstalledGame[]>("scan_installed_games");
+
+export const detectModFrameworks = (
+  installPath: string,
+  executable: string | null
+) =>
+  invoke<DetectedFramework[]>("detect_mod_frameworks", {
+    installPath,
+    executable
+  });
 
 export const listProcesses = () => invoke<ProcessInfo[]>("list_processes");
 

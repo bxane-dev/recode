@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 — 2026-10-05
+
+### Added
+- Framework Bridge for REFramework, BepInEx, MelonLoader, UE4SS, and SMAPI.
+- Automatic framework detection from selected game/install and running executable paths.
+- Framework requirement metadata inside native `.rc` profiles.
+- Required-framework compatibility checks before 1-click trainer activation.
+- Official framework links directly from the Recode UI.
+- AI Builder support for declaring framework dependencies in generated `.rc` profiles.
+- Extensible framework detector architecture for adding more mod loaders later.
+
+### Changed
+- Trainers with missing required frameworks install safely but remain disabled until the framework is detected.
+- Framework requirements survive `.rc` import/export and Hub distribution.
+
+
 ## 1.4.0 — 2026-10-05
 
 ### Added

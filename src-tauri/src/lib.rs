@@ -1,5 +1,6 @@
 mod ai;
 mod commands;
+mod frameworks;
 mod models;
 mod platform;
 mod scanner;
@@ -18,6 +19,7 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::scan_installed_games,
+            commands::detect_mod_frameworks,
             commands::list_processes,
             commands::list_modules,
             commands::resolve_pointer_chain,

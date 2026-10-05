@@ -1,4 +1,5 @@
 import type {
+  FrameworkRequirement,
   TrainerEntry,
   TrainerProfile,
   TrainerProfileFile,
@@ -134,10 +135,20 @@ function normalizeProfile(input: unknown): TrainerProfile {
         .filter((entry): entry is TrainerEntry => Boolean(entry))
     : [];
 
+  const frameworks = Array.isArray(value.frameworks)
+    ? value.frameworks
+        .map(normalizeFrameworkRequirement)
+        .filter(
+          (entry): entry is FrameworkRequirement => Boolean(entry)
+        )
+        .slice(0, 12)
+    : undefined;
+
   return {
     id: typeof value.id === "string" && value.id ? value.id : crypto.randomUUID(),
     name,
     processName: typeof value.processName === "string" ? value.processName : "",
+    frameworks,
     trainers,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : now(),
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : now(),
@@ -195,5 +206,38 @@ function normalizeTrainer(input: unknown): TrainerEntry | null {
             occurrence: Math.max(0, Math.min(127, Math.trunc(value.signature.occurrence)))
           }
         : undefined
+  };
+}
+
+
+function normalizeFrameworkRequirement(
+  input: unknown
+): FrameworkRequirement | null {
+  if (!input || typeof input !== "object") return null;
+  const value = input as Partial<FrameworkRequirement>;
+  const id =
+    typeof value.id === "string"
+      ? value.id.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "").slice(0, 64)
+      : "";
+  if (!id) return null;
+
+  return {
+    id,
+    name:
+      typeof value.name === "string" && value.name.trim()
+        ? value.name.trim().slice(0, 100)
+        : undefined,
+    required: value.required !== false,
+    minVersion:
+      typeof value.minVersion === "string" && value.minVersion.trim()
+        ? value.minVersion.trim().slice(0, 40)
+        : undefined,
+    capabilities: Array.isArray(value.capabilities)
+      ? value.capabilities
+          .filter((item): item is string => typeof item === "string")
+          .map((item) => item.trim().slice(0, 64))
+          .filter(Boolean)
+          .slice(0, 12)
+      : undefined
   };
 }

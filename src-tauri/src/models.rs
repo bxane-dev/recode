@@ -9,6 +9,19 @@ pub struct ProcessInfo {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct DetectedFramework {
+    pub id: String,
+    pub name: String,
+    pub detected: bool,
+    pub confidence: String,
+    pub root_path: Option<String>,
+    pub marker: Option<String>,
+    pub capabilities: Vec<String>,
+    pub official_url: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstalledGame {
     pub id: String,
     pub store: String,

@@ -14,6 +14,25 @@ export interface RecodeSettings {
   rememberCheatSelection: boolean;
 }
 
+export interface DetectedFramework {
+  id: string;
+  name: string;
+  detected: boolean;
+  confidence: "high" | "possible";
+  rootPath: string | null;
+  marker: string | null;
+  capabilities: string[];
+  officialUrl: string;
+}
+
+export interface FrameworkRequirement {
+  id: string;
+  name?: string;
+  required?: boolean;
+  minVersion?: string;
+  capabilities?: string[];
+}
+
 export interface ProcessInfo {
   pid: number;
   name: string;
@@ -83,6 +102,7 @@ export interface TrainerProfile {
   id: string;
   name: string;
   processName: string;
+  frameworks?: FrameworkRequirement[];
   trainers: TrainerEntry[];
   createdAt: string;
   updatedAt: string;

@@ -92,8 +92,6 @@ export default function StoreLibraryPanel(props: Props) {
       </div>
       <div className="library-settings">
         <label><input type="checkbox" checked={settings.autoDetectStores} onChange={(event) => setOption("autoDetectStores", event.target.checked)} />Auto-detect libraries</label>
-        <label><input type="checkbox" checked={settings.autoDownloadCompatible} onChange={(event) => setOption("autoDownloadCompatible", event.target.checked)} />Auto-download compatible profiles</label>
-        <label><input type="checkbox" checked={settings.rememberCheatSelection} onChange={(event) => setOption("rememberCheatSelection", event.target.checked)} />Remember selected trainer toggles</label>
       </div>
       <input className="input" placeholder="Filter installed games" value={query} onChange={(event) => setQuery(event.target.value)} />
       <div className="library-list">

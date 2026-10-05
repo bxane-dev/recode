@@ -22,11 +22,16 @@ function cleanDescription(value: string) {
   return value.replace(/^"(.*)"$/, "$1").trim() || "Imported cheat";
 }
 
-function parseAddress(raw: string) {
+type ParsedAddress =
+  | { kind: "module"; moduleName: string; baseOffset: string }
+  | { kind: "absolute"; absolute: string };
+
+function parseAddress(raw: string): ParsedAddress | null {
   const value = raw.trim();
   const moduleMatch = value.match(/^"([^"]+)"\s*\+\s*([0-9a-fA-F]+)$/);
   if (moduleMatch) {
     return {
+      kind: "module",
       moduleName: moduleMatch[1],
       baseOffset: `0x${moduleMatch[2].toUpperCase()}`
     };
@@ -35,6 +40,7 @@ function parseAddress(raw: string) {
   const unquotedModule = value.match(/^([^+]+?\.(?:exe|dll|so))\s*\+\s*([0-9a-fA-F]+)$/i);
   if (unquotedModule) {
     return {
+      kind: "module",
       moduleName: unquotedModule[1].trim(),
       baseOffset: `0x${unquotedModule[2].toUpperCase()}`
     };
@@ -42,6 +48,7 @@ function parseAddress(raw: string) {
 
   if (/^(?:0x)?[0-9a-fA-F]+$/.test(value)) {
     return {
+      kind: "absolute",
       absolute: value.startsWith("0x")
         ? value
         : `0x${value.toUpperCase()}`
@@ -93,28 +100,27 @@ export function parseCheatEngineTable(
     );
     const storedValue = lastState?.getAttribute("Value")?.trim() || "0";
 
-    if ("moduleName" in address && !inferredProcess) {
+    if (address.kind === "module" && !inferredProcess) {
       inferredProcess = address.moduleName;
     }
 
     const processName =
       selectedProcessName ||
       inferredProcess ||
-      ("moduleName" in address ? address.moduleName : "");
+      (address.kind === "module" ? address.moduleName : "");
 
     const entry: TrainerEntry = {
       id: crypto.randomUUID(),
       label: cleanDescription(textOf(node, "Description")),
       pid: 0,
       processName,
-      address:
-        "absolute" in address ? address.absolute : "0x0",
+      address: address.kind === "absolute" ? address.absolute : "0x0",
       valueType: mappedType,
       value: storedValue,
       enabled: false
     };
 
-    if ("moduleName" in address) {
+    if (address.kind === "module") {
       entry.pointerChain = {
         moduleName: address.moduleName,
         baseOffset: address.baseOffset,

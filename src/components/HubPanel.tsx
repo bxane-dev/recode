@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadHubCatalog, loadRemoteTrainer } from "../lib/hub";
+import { loadSupabaseProfile, searchSupabaseHub } from "../lib/hubDb";
 import type { HubEntry, InstalledGame, ProcessInfo, TrainerProfile } from "../types";
 
 interface Props {
@@ -49,9 +50,24 @@ export default function HubPanel({
     }
     setLoading(true);
     try {
-      const catalog = await loadHubCatalog();
-      setEntries(catalog.entries);
-      const count = catalog.entries.filter((entry) =>
+      let combined: HubEntry[] = [];
+      try {
+        combined = await searchSupabaseHub(selectedTarget);
+      } catch {
+        combined = [];
+      }
+
+      const catalog = await loadHubCatalog().catch(() => null);
+      if (catalog) {
+        const seen = new Set(combined.map((entry) => entry.id));
+        combined = [
+          ...combined,
+          ...catalog.entries.filter((entry) => !seen.has(entry.id))
+        ];
+      }
+
+      setEntries(combined);
+      const count = combined.filter((entry) =>
         entry.processNames.some(
           (processName) =>
             normalizeProcess(processName) === normalizeProcess(selectedTarget)
@@ -82,7 +98,9 @@ export default function HubPanel({
     }
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+      const profile = entry.profileUrl.startsWith("supabase://")
+        ? await loadSupabaseProfile(entry.id)
+        : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
       onInstall(profile, true);
     } catch (error) {
       onStatus(`Hub install failed: ${String(error)}`);

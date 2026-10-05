@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0 — 2026-10-05
+
+### Added
+- Automatic Steam library discovery from local Steam manifests and additional Steam library folders.
+- Automatic Epic Games detection from launcher manifests on Windows and Legendary/Heroic data on Linux.
+- GOG detection from common GOG Galaxy/GOG install locations and Heroic data.
+- Installed-game library panel with running-game matching.
+- Automatic refresh of running processes so detected games can bind without using a terminal.
+- Manual rescan and library filtering controls.
+
+### Changed
+- Recode Hub no longer shows the compatibility warning paragraph in the main UI.
+- Release remains fully installable through the Windows installer, Linux DEB, or AppImage.
 ## 1.1.0 — 2026-10-05
 
 ### Added

@@ -38,6 +38,7 @@ chmod +x Recode-Linux-x64.AppImage
 
 - Native Windows and Linux desktop application using Tauri 2 + Rust
 - React + TypeScript interface
+- Automatic Steam, GOG and Epic Games library detection
 - Running-process browser and filtering
 - Exact-value scans for i32, u32, i64, u64, f32 and f64
 - Rescans to narrow addresses after values change
@@ -85,7 +86,7 @@ Hotkeys use Tauri's native global-shortcut support. Examples include `F6`, `Cont
 
 ## Recode Hub and trainer compatibility
 
-Recode 1.1 adds **Recode Hub**, a data-only online trainer catalog for offline/single-player games. After selecting a game, **Search game** checks the maintained Hub index and **1-Click Apply** imports the matching profile and enables its entries.
+Recode includes **Recode Hub**, a data-only online trainer catalog for offline/single-player games. After selecting a game, **Search game** checks the maintained Hub index and **1-Click Apply** imports the matching profile and enables its entries.
 
 Supported import paths:
 

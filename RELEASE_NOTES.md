@@ -1,25 +1,27 @@
-# Recode v1.1.0
+# Recode v1.2.0
 
-Recode 1.1 adds one-click online trainer discovery and broader safe trainer compatibility.
+Recode 1.2 adds automatic local game-library detection and a smoother no-terminal workflow.
 
 ## Added
 
-- Recode Hub online trainer catalog
-- **1-Click Apply** for profiles matching the selected offline game
-- Cheat Engine `.CT` import for compatible numeric addresses and pointer chains
-- Direct Recode/CT import from GitHub Raw and GitHub Gist URLs
-- Automatic profile installation and enablement after one-click apply
-- Input normalization and validation for imported pointer/signature data
-- Existing signed auto-updater support remains built in
+- Steam game detection, including additional Steam library folders
+- GOG game detection from common GOG/Galaxy locations
+- Epic Games detection from Epic launcher manifests
+- Linux Legendary/Heroic detection for Epic/GOG installs
+- Installed-game browser inside Recode
+- Automatic matching between detected games and running processes
+- Automatic running-process refresh
+- Manual Rescan and installed-game filtering
 
-## Compatibility limits
+## Existing features
 
-Recode does not execute arbitrary trainer EXEs, DLLs, Cheat Engine Auto Assembler scripts or Lua code. Wand/WeMod uses a proprietary encrypted trainer architecture, so its trainers are not extracted or redistributed by Recode.
-
-## Upgrade note
-
-v1.0.0 users need to install v1.1.0 manually once because v1.0.0 did not include the updater plugin. Future signed releases can update from inside Recode.
+- Windows NSIS installer
+- Linux DEB and AppImage
+- Recode Hub
+- Compatible Cheat Engine table import
+- Profiles, hotkeys, pointer chains and signatures
+- Signed auto-updater support when repository signing secrets are configured
 
 ## Scope
 
-Offline/single-player games only. No anti-cheat bypassing, DRM circumvention or online-service manipulation.
+Recode is intended for offline/single-player games and local modding workflows.

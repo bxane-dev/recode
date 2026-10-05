@@ -1,26 +1,23 @@
 # Recode v1.4.0
 
-Recode 1.4 makes `.rc` the native trainer file and turns AI Builder into a direct request workflow.
+Recode 1.4 makes `.rc` the native trainer format and completes the shared Supabase Hub workflow.
 
 ## Added
 
 - Native `.rc` Recode trainer files
-- **Convert .CT → .rc** for compatible Cheat Engine table entries
-- Game-aware **Cheat Engine Web** search using the selected Steam/GOG/Epic game name
-- **OK · Send** AI request button
-- Direct OpenAI/ChatGPT API support through the Responses API
-- Direct Claude/Anthropic API support
-- Direct Google Gemini API support
-- Custom OpenAI-compatible/local AI endpoint support
-- AI reply preview, validation, one-click apply, and **Save .rc**
-- Backward-compatible JSON profile import
+- Compatible Cheat Engine `.CT` → `.rc` conversion
+- Automatic caching/download of matching trainer data when enabled
+- Faster one-click apply from cached Hub profiles
+- Direct opt-in community publication to Supabase
+- Server-side data-only profile validation/normalization
+- GitHub fallback submission path
+- Steam, GOG and Epic automatic library/game detection
+- Remember-enabled-cheats toggle
+- AI trainer builder for OpenAI/ChatGPT, Claude, Gemini and compatible/local providers
 
-## Desktop
+## Compatibility
 
-- Windows x64 NSIS installer without a console window
-- Linux x64 DEB
-- Linux x64 AppImage
-- Live Supabase-backed Recode Hub with GitHub catalog fallback
+Recode can translate compatible Cheat Engine numeric/address/pointer data into `.rc`. Trainer ecosystems that expose only proprietary/encrypted packages or arbitrary native executables do not have a universal format that can be reliably converted.
 
 ## Scope
 

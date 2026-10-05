@@ -5,6 +5,7 @@ import { readProfileFile, writeProfileFile } from "../lib/api";
 import { parseCheatEngineTable } from "../lib/cheatEngine";
 import { loadHubCatalog, loadRemoteTrainer } from "../lib/hub";
 import { loadSupabaseProfile, searchSupabaseHub } from "../lib/hubDb";
+import { cacheHubProfile, getCachedHubProfile } from "../lib/hubCache";
 import { profileToFile } from "../lib/profiles";
 import type {
   HubEntry,
@@ -83,16 +84,35 @@ export default function HubPanel({
 
       setEntries(combined);
 
-      const count = combined.filter((entry) =>
+      const compatible = combined.filter((entry) =>
         entry.processNames.some(
           (processName) =>
             normalizeProcess(processName) === normalizeProcess(selectedTarget)
         )
-      ).length;
+      );
+
+      let cached = 0;
+      if (autoDownloadCompatible) {
+        for (const entry of compatible.slice(0, 12)) {
+          if (getCachedHubProfile(entry.id)) continue;
+          try {
+            const profile = entry.profileUrl.startsWith("supabase://")
+              ? await loadSupabaseProfile(entry.id)
+              : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+            cacheHubProfile(entry.id, profile);
+            cached += 1;
+          } catch {
+            // Keep search results even when one remote trainer cannot be cached.
+          }
+        }
+      }
 
       onStatus(
-        count
-          ? "Recode Hub found " + count + " compatible trainer profile(s)"
+        compatible.length
+          ? "Recode Hub found " +
+              compatible.length +
+              " compatible trainer profile(s)" +
+              (cached ? " · cached " + cached + " for 1-click use" : "")
           : "No indexed Recode Hub profile matches this game yet"
       );
     } catch (error) {
@@ -172,9 +192,13 @@ export default function HubPanel({
 
     setLoading(true);
     try {
-      const profile = entry.profileUrl.startsWith("supabase://")
-        ? await loadSupabaseProfile(entry.id)
-        : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+      let profile = getCachedHubProfile(entry.id);
+      if (!profile) {
+        profile = entry.profileUrl.startsWith("supabase://")
+          ? await loadSupabaseProfile(entry.id)
+          : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+        cacheHubProfile(entry.id, profile);
+      }
 
       onInstall(profile, true);
     } catch (error) {

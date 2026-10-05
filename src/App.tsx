@@ -480,7 +480,7 @@ export default function App() {
         multiple: false,
         directory: false,
         filters: [
-          { name: "Recode / Cheat Engine", extensions: ["json", "ct"] }
+          { name: "Recode / Cheat Engine", extensions: ["rc", "json", "ct"] }
         ]
       });
       if (!path || Array.isArray(path)) return;

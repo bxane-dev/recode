@@ -1,6 +1,6 @@
 import { recodeSupabase } from "./supabase";
 import type { HubEntry, TrainerProfile } from "../types";
-import { parseProfileFile } from "./profiles";
+import { parseProfileFile, profileToFile } from "./profiles";
 
 interface DbGame {
   id: string;
@@ -79,4 +79,49 @@ export async function loadSupabaseProfile(profileId: string): Promise<TrainerPro
 
   if (error) throw error;
   return parseProfileFile(JSON.stringify(data.profile));
+}
+
+
+export interface CommunitySubmissionInput {
+  gameName: string;
+  processName: string;
+  requestedFeature?: string;
+  aiProvider?: string;
+  authorName?: string;
+  profile: TrainerProfile;
+  publishConsent: boolean;
+}
+
+export async function submitCommunityProfile(input: CommunitySubmissionInput) {
+  if (!input.publishConsent) {
+    throw new Error("Explicit publication consent is required");
+  }
+
+  const { data, error } = await recodeSupabase.functions.invoke(
+    "submit-recode-trainer",
+    {
+      body: {
+        gameName: input.gameName,
+        processName: input.processName,
+        requestedFeature: input.requestedFeature ?? "",
+        aiProvider: input.aiProvider ?? "",
+        authorName: input.authorName ?? "community",
+        profile: profileToFile(input.profile),
+        publishConsent: true
+      }
+    }
+  );
+
+  if (error) throw error;
+  if (!data?.ok || typeof data.profileId !== "string") {
+    throw new Error(data?.error || "Hub publication failed");
+  }
+
+  return data as {
+    ok: true;
+    profileId: string;
+    submissionId: string;
+    trainerCount: number;
+    verified: boolean;
+  };
 }

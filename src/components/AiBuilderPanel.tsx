@@ -8,6 +8,7 @@ import {
 } from "../lib/api";
 import { parseCheatEngineTable } from "../lib/cheatEngine";
 import { parseProfileFile, profileToFile } from "../lib/profiles";
+import { submitCommunityProfile } from "../lib/hubDb";
 import type { InstalledGame, ProcessInfo, TrainerProfile } from "../types";
 
 interface Props {
@@ -235,35 +236,60 @@ export default function AiBuilderPanel({
     );
     if (!confirmed) return;
 
+    const processName = target || activeProfile.processName;
+    if (!processName) {
+      onStatus("Select the game/process before publishing to Recode Hub");
+      return;
+    }
+
     try {
-      const safeName =
-        activeProfile.name
-          .replace(/[^a-z0-9-_]+/gi, "-")
-          .replace(/^-+|-+$/g, "")
-          .toLowerCase() || "trainer";
-
-      const path = await save({
-        title: "Save Hub submission profile",
-        defaultPath: safeName + ".rc",
-        filters: [{ name: "Recode trainer profile", extensions: ["rc"] }]
+      const result = await submitCommunityProfile({
+        gameName,
+        processName,
+        requestedFeature: goal.trim(),
+        aiProvider: generatedProfile ? provider : "",
+        profile: activeProfile,
+        publishConsent: true
       });
-      if (!path) return;
 
-      await writeProfileFile(
-        path,
-        JSON.stringify(profileToFile(activeProfile), null, 2)
-      );
-      await navigator.clipboard
-        .writeText(JSON.stringify(profileToFile(activeProfile), null, 2))
-        .catch(() => {});
-      await openUrl(
-        "https://github.com/bxane-dev/recode/issues/new?template=trainer_submission.yml"
-      );
       onStatus(
-        "Profile prepared. Nothing is shared until you submit the GitHub form."
+        "Published to Recode Hub · " +
+          result.trainerCount +
+          " trainer entries · community/unverified"
       );
     } catch (error) {
-      onStatus("Could not prepare Hub submission: " + String(error));
+      const useFallback = window.confirm(
+        "Supabase publication failed. Prepare the .rc file and open the GitHub submission fallback instead?"
+      );
+      if (!useFallback) {
+        onStatus("Hub publication failed: " + String(error));
+        return;
+      }
+
+      try {
+        const safeName =
+          activeProfile.name
+            .replace(/[^a-z0-9-_]+/gi, "-")
+            .replace(/^-+|-+$/g, "")
+            .toLowerCase() || "trainer";
+
+        const path = await save({
+          title: "Save Hub submission profile",
+          defaultPath: safeName + ".rc",
+          filters: [{ name: "Recode trainer profile", extensions: ["rc"] }]
+        });
+        if (!path) return;
+
+        const serialized = JSON.stringify(profileToFile(activeProfile), null, 2);
+        await writeProfileFile(path, serialized);
+        await navigator.clipboard.writeText(serialized).catch(() => {});
+        await openUrl(
+          "https://github.com/bxane-dev/recode/issues/new?template=trainer_submission.yml"
+        );
+        onStatus("Opened GitHub Hub-submission fallback.");
+      } catch (fallbackError) {
+        onStatus("Could not prepare Hub fallback: " + String(fallbackError));
+      }
     }
   };
 

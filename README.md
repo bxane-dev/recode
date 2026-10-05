@@ -96,7 +96,7 @@ Supported import paths:
 
 For safety, Recode deliberately skips Cheat Engine Auto Assembler scripts, Lua, DLL injection, executable trainers, and other arbitrary code. Wand/WeMod uses its own proprietary encrypted trainer architecture, so Recode does not extract, crack or execute Wand trainers; users can continue using those through the official Wand application.
 
-The public Hub index lives in `hub/catalog.json`. Community profiles can be contributed through normal GitHub pull requests and reviewed before appearing in one-click search.
+The public Hub index lives in `hub/catalog.json`. AI/user-created profiles remain local unless the user explicitly opts in to public sharing. When the user enables publishing consent and submits the GitHub Hub form, the repository workflow validates the data-only profile and, if valid, commits it to `hub/profiles/` and updates `hub/catalog.json` on `main`, making it available to other Recode users.
 
 ## AI Builder and community Hub submissions
 

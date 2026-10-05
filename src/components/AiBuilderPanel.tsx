@@ -27,6 +27,7 @@ export default function AiBuilderPanel({
   onStatus
 }: Props) {
   const [goal, setGoal] = useState("");
+  const [publishConsent, setPublishConsent] = useState(false);
   const target = selectedProcess?.name || basename(selectedGame?.executable) || "";
   const gameName = selectedGame?.name || target || "the selected offline game";
 
@@ -83,6 +84,11 @@ export default function AiBuilderPanel({
   };
 
   const submitToHub = async () => {
+    if (!publishConsent) {
+      onStatus("Enable public sharing consent before publishing to Recode Hub");
+      return;
+    }
+
     if (!activeProfile) {
       onStatus("Import or create a trainer profile first");
       return;
@@ -95,6 +101,11 @@ export default function AiBuilderPanel({
       onStatus("Hub sharing cancelled");
       return;
     }
+
+    const confirmed = window.confirm(
+      "Publish this trainer profile publicly to the Recode Hub? After GitHub validation, it can be stored in the repository and become available to other users."
+    );
+    if (!confirmed) return;
 
     try {
       const safeName =
@@ -128,9 +139,23 @@ export default function AiBuilderPanel({
         <div className="ai-actions">
           <button onClick={() => void copyPrompt()}>Copy AI prompt</button>
           <button className="primary" onClick={() => void uploadAiFile()}>Upload + Apply</button>
-          <button onClick={() => void submitToHub()}>Submit to Hub</button>
+          <button
+            disabled={!publishConsent}
+            onClick={() => void submitToHub()}
+          >
+            Publish to Hub
+          </button>
         </div>
       </div>
+
+      <label className="ai-publish-consent">
+        <input
+          type="checkbox"
+          checked={publishConsent}
+          onChange={(event) => setPublishConsent(event.target.checked)}
+        />
+        I agree to publish this trainer profile publicly if I choose Publish to Hub.
+      </label>
 
       <textarea
         className="input ai-goal"

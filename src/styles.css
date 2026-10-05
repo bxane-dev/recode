@@ -834,3 +834,17 @@ button:disabled {
     justify-content: flex-start;
   }
 }
+
+
+.ai-publish-consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  color: #9ca3ad;
+  font-size: 11px;
+}
+
+.ai-publish-consent input {
+  accent-color: currentColor;
+}

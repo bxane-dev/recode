@@ -4,6 +4,7 @@ import type {
   ProcessInfo,
   ProcessModule,
   ScanSummary,
+  SignatureResolution,
   ValueType
 } from "../types";
 
@@ -24,6 +25,23 @@ export const resolvePointerChain = (
     moduleName,
     baseOffset,
     offsets,
+    offlineConfirmed
+  });
+
+export const findSignature = (
+  pid: number,
+  moduleName: string,
+  pattern: string,
+  matchOffset: string,
+  occurrence: number,
+  offlineConfirmed: boolean
+) =>
+  invoke<SignatureResolution>("find_signature", {
+    pid,
+    moduleName,
+    pattern,
+    matchOffset,
+    occurrence,
     offlineConfirmed
   });
 

@@ -466,6 +466,7 @@ button:disabled {
 }
 
 .stable-badge,
+.signature-badge,
 .raw-badge {
   display: inline-flex;
   align-items: center;
@@ -485,6 +486,12 @@ button:disabled {
   color: #a9dc8f;
 }
 
+.signature-badge {
+  border: 1px solid #445336;
+  background: #151b12;
+  color: #b8df9f;
+}
+
 .raw-badge {
   border: 1px solid #3a3d43;
   background: #16181b;
@@ -492,5 +499,5 @@ button:disabled {
 }
 
 .trainer-edit {
-  grid-template-columns: minmax(80px, 1fr) 72px auto auto auto;
+  grid-template-columns: minmax(80px, 1fr) 72px auto auto auto auto;
 }

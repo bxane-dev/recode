@@ -22,6 +22,14 @@ pub struct PointerResolution {
     pub steps: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SignatureResolution {
+    pub address: String,
+    pub match_address: String,
+    pub module_base: String,
+    pub occurrence: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct MemoryRegion {
     pub start: usize,

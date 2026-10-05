@@ -13,6 +13,7 @@ pub fn run() {
             commands::list_processes,
             commands::list_modules,
             commands::resolve_pointer_chain,
+            commands::find_signature,
             commands::start_scan,
             commands::rescan,
             commands::write_value,

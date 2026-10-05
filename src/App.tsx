@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   clearScan,
+  findSignature,
   listModules,
   listProcesses,
   rescan,
@@ -16,7 +17,7 @@ import type {
   ValueType
 } from "./types";
 
-const TRAINER_KEY = "recode.trainers.v2";
+const TRAINER_KEY = "recode.trainers.v3";
 
 function formatBytes(value: number) {
   const units = ["B", "KB", "MB", "GB"];
@@ -33,6 +34,7 @@ function loadTrainers(): TrainerEntry[] {
   try {
     const raw =
       localStorage.getItem(TRAINER_KEY) ??
+      localStorage.getItem("recode.trainers.v2") ??
       localStorage.getItem("recode.trainers.v1");
     return raw ? JSON.parse(raw) : [];
   } catch {
@@ -118,14 +120,22 @@ export default function App() {
               process.name.toLowerCase() === entry.processName.toLowerCase()
           );
 
-          if (!liveProcess) {
-            continue;
-          }
+          if (!liveProcess) continue;
 
           try {
             let address = entry.address;
 
-            if (entry.pointerChain) {
+            if (entry.signature) {
+              const resolved = await findSignature(
+                liveProcess.pid,
+                entry.signature.moduleName,
+                entry.signature.pattern,
+                entry.signature.matchOffset,
+                entry.signature.occurrence,
+                true
+              );
+              address = resolved.address;
+            } else if (entry.pointerChain) {
               const resolved = await resolvePointerChain(
                 liveProcess.pid,
                 entry.pointerChain.moduleName,
@@ -157,7 +167,7 @@ export default function App() {
     };
 
     void applyEnabled();
-    const timer = window.setInterval(() => void applyEnabled(), 500);
+    const timer = window.setInterval(() => void applyEnabled(), 650);
 
     return () => {
       cancelled = true;
@@ -269,26 +279,30 @@ export default function App() {
     );
   };
 
-  const stabilizeTrainer = async (entry: TrainerEntry) => {
-    const liveProcess =
-      processes.find(
-        (process) =>
-          process.name.toLowerCase() === entry.processName.toLowerCase()
-      ) ?? selected;
+  const liveProcessFor = (entry: TrainerEntry) =>
+    processes.find(
+      (process) =>
+        process.name.toLowerCase() === entry.processName.toLowerCase()
+    ) ?? selected;
 
+  const availableModulesFor = async (process: ProcessInfo) => {
+    if (selected?.pid === process.pid && modules.length) return modules;
+    return listModules(process.pid, offlineConfirmed);
+  };
+
+  const stabilizeTrainer = async (entry: TrainerEntry) => {
+    const liveProcess = liveProcessFor(entry);
     if (!liveProcess) {
       setStatus("Start the game and select its process before stabilizing");
       return;
     }
 
-    let availableModules = modules;
-    if (selected?.pid !== liveProcess.pid || !availableModules.length) {
-      try {
-        availableModules = await listModules(liveProcess.pid, offlineConfirmed);
-      } catch (error) {
-        setStatus(String(error));
-        return;
-      }
+    let availableModules: ProcessModule[];
+    try {
+      availableModules = await availableModulesFor(liveProcess);
+    } catch (error) {
+      setStatus(String(error));
+      return;
     }
 
     const target = parseHex(entry.address);
@@ -301,6 +315,7 @@ export default function App() {
       const offset = target - parseHex(containing.base_address);
       updateTrainer(entry.id, {
         pid: liveProcess.pid,
+        signature: undefined,
         pointerChain: {
           moduleName: containing.name,
           baseOffset: `0x${offset.toString(16).toUpperCase()}`,
@@ -323,9 +338,7 @@ export default function App() {
       availableModules[0]?.name ??
       "";
 
-    const moduleName = window
-      .prompt("Base module name", defaultModule)
-      ?.trim();
+    const moduleName = window.prompt("Base module name", defaultModule)?.trim();
     if (!moduleName) return;
 
     const baseOffset = window
@@ -358,6 +371,7 @@ export default function App() {
       updateTrainer(entry.id, {
         pid: liveProcess.pid,
         address: resolved.address,
+        signature: undefined,
         pointerChain: { moduleName, baseOffset, offsets }
       });
       setStatus(`Pointer chain resolved to ${resolved.address}`);
@@ -366,9 +380,88 @@ export default function App() {
     }
   };
 
-  const testPointer = async (entry: TrainerEntry) => {
-    if (!entry.pointerChain) return;
+  const configureSignature = async (entry: TrainerEntry) => {
+    const liveProcess = liveProcessFor(entry);
+    if (!liveProcess) {
+      setStatus("Start the game and select its process before adding a signature");
+      return;
+    }
 
+    let availableModules: ProcessModule[];
+    try {
+      availableModules = await availableModulesFor(liveProcess);
+    } catch (error) {
+      setStatus(String(error));
+      return;
+    }
+
+    const defaultModule =
+      availableModules.find(
+        (module) =>
+          module.name.toLowerCase() === liveProcess.name.toLowerCase()
+      )?.name ??
+      availableModules[0]?.name ??
+      "";
+
+    const moduleName = window.prompt("Signature module", entry.signature?.moduleName ?? defaultModule)?.trim();
+    if (!moduleName) return;
+
+    const pattern = window
+      .prompt(
+        "AOB signature (use ? or ?? for wildcard bytes)",
+        entry.signature?.pattern ?? "48 8B ?? ?? 89 45 ??"
+      )
+      ?.trim();
+    if (!pattern) return;
+
+    const matchOffset = window
+      .prompt(
+        "Result offset from the signature match (example: 0x8 or -0x10)",
+        entry.signature?.matchOffset ?? "0x0"
+      )
+      ?.trim();
+    if (matchOffset === undefined || matchOffset === "") return;
+
+    const occurrenceInput = window
+      .prompt(
+        "Which match? 1 = first, 2 = second, etc.",
+        String((entry.signature?.occurrence ?? 0) + 1)
+      )
+      ?.trim();
+    if (!occurrenceInput) return;
+
+    const occurrenceNumber = Number.parseInt(occurrenceInput, 10);
+    if (!Number.isInteger(occurrenceNumber) || occurrenceNumber < 1 || occurrenceNumber > 128) {
+      setStatus("Signature occurrence must be between 1 and 128");
+      return;
+    }
+    const occurrence = occurrenceNumber - 1;
+
+    try {
+      const resolved = await findSignature(
+        liveProcess.pid,
+        moduleName,
+        pattern,
+        matchOffset,
+        occurrence,
+        offlineConfirmed
+      );
+
+      updateTrainer(entry.id, {
+        pid: liveProcess.pid,
+        address: resolved.address,
+        pointerChain: undefined,
+        signature: { moduleName, pattern, matchOffset, occurrence }
+      });
+      setStatus(
+        `Signature matched at ${resolved.match_address}; trainer target → ${resolved.address}`
+      );
+    } catch (error) {
+      setStatus(String(error));
+    }
+  };
+
+  const testStableTrainer = async (entry: TrainerEntry) => {
     const liveProcess = processes.find(
       (process) =>
         process.name.toLowerCase() === entry.processName.toLowerCase()
@@ -379,20 +472,35 @@ export default function App() {
     }
 
     try {
-      const resolved = await resolvePointerChain(
-        liveProcess.pid,
-        entry.pointerChain.moduleName,
-        entry.pointerChain.baseOffset,
-        entry.pointerChain.offsets,
-        offlineConfirmed
-      );
-      updateTrainer(entry.id, {
-        pid: liveProcess.pid,
-        address: resolved.address
-      });
-      setStatus(
-        `Resolved ${entry.label} → ${resolved.address} in ${resolved.steps.length} step(s)`
-      );
+      if (entry.signature) {
+        const resolved = await findSignature(
+          liveProcess.pid,
+          entry.signature.moduleName,
+          entry.signature.pattern,
+          entry.signature.matchOffset,
+          entry.signature.occurrence,
+          offlineConfirmed
+        );
+        updateTrainer(entry.id, { pid: liveProcess.pid, address: resolved.address });
+        setStatus(
+          `Signature test passed: ${resolved.match_address} → ${resolved.address}`
+        );
+        return;
+      }
+
+      if (entry.pointerChain) {
+        const resolved = await resolvePointerChain(
+          liveProcess.pid,
+          entry.pointerChain.moduleName,
+          entry.pointerChain.baseOffset,
+          entry.pointerChain.offsets,
+          offlineConfirmed
+        );
+        updateTrainer(entry.id, { pid: liveProcess.pid, address: resolved.address });
+        setStatus(
+          `Pointer test passed: ${resolved.address} in ${resolved.steps.length} step(s)`
+        );
+      }
     } catch (error) {
       setStatus(String(error));
     }
@@ -403,7 +511,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v0.2.0</div>
+          <div className="subtitle">offline trainer toolkit · v0.3.0</div>
         </div>
         <div className="status-pill">
           <span className="status-dot" />
@@ -430,9 +538,7 @@ export default function App() {
               <span className="eyebrow">TARGET</span>
               <h2>Processes</h2>
             </div>
-            <button className="ghost" onClick={refresh}>
-              Refresh
-            </button>
+            <button className="ghost" onClick={refresh}>Refresh</button>
           </div>
 
           <input
@@ -446,14 +552,10 @@ export default function App() {
             {filteredProcesses.map((process) => (
               <button
                 key={process.pid}
-                className={
-                  selected?.pid === process.pid ? "process selected" : "process"
-                }
+                className={selected?.pid === process.pid ? "process selected" : "process"}
                 onClick={() => attach(process)}
               >
-                <span className="process-icon">
-                  {process.name.slice(0, 1).toUpperCase()}
-                </span>
+                <span className="process-icon">{process.name.slice(0, 1).toUpperCase()}</span>
                 <span className="process-copy">
                   <strong>{process.name}</strong>
                   <small>PID {process.pid}</small>
@@ -549,19 +651,14 @@ export default function App() {
                     <div className="result-row" key={match.address}>
                       <code>{match.address}</code>
                       <div className="row-actions">
-                        <button onClick={() => editAddress(match.address)}>
-                          Write
-                        </button>
-                        <button onClick={() => saveTrainer(match.address)}>
-                          Save
-                        </button>
+                        <button onClick={() => editAddress(match.address)}>Write</button>
+                        <button onClick={() => saveTrainer(match.address)}>Save</button>
                       </div>
                     </div>
                   ))}
                   {scan.matches.length > 300 && (
                     <div className="notice">
-                      Showing the first 300 stored addresses. Rescan to narrow the
-                      list.
+                      Showing the first 300 stored addresses. Rescan to narrow the list.
                     </div>
                   )}
                 </div>
@@ -594,18 +691,14 @@ export default function App() {
                     <div className="trainer-top">
                       <div>
                         <strong>{entry.label}</strong>
-                        <small>
-                          {entry.processName} · {entry.address}
-                        </small>
+                        <small>{entry.processName} · {entry.address}</small>
                       </div>
                       <label className="switch">
                         <input
                           type="checkbox"
                           checked={entry.enabled}
                           onChange={(event) =>
-                            updateTrainer(entry.id, {
-                              enabled: event.target.checked
-                            })
+                            updateTrainer(entry.id, { enabled: event.target.checked })
                           }
                         />
                         <span />
@@ -613,9 +706,16 @@ export default function App() {
                     </div>
 
                     <div className="trainer-meta">
-                      {entry.pointerChain ? (
+                      {entry.signature ? (
+                        <span className="signature-badge">
+                          AOB · {entry.signature.moduleName} · {entry.signature.pattern}
+                          {entry.signature.matchOffset === "0x0" || entry.signature.matchOffset === "0"
+                            ? ""
+                            : ` · offset ${entry.signature.matchOffset}`}
+                        </span>
+                      ) : entry.pointerChain ? (
                         <span className="stable-badge">
-                          STABLE · {entry.pointerChain.moduleName}
+                          POINTER · {entry.pointerChain.moduleName}
                           {entry.pointerChain.baseOffset.startsWith("-") ? "" : "+"}
                           {entry.pointerChain.baseOffset}
                           {entry.pointerChain.offsets.length
@@ -651,13 +751,10 @@ export default function App() {
                         <option value="f32">f32</option>
                         <option value="f64">f64</option>
                       </select>
-                      <button onClick={() => void stabilizeTrainer(entry)}>
-                        Stabilize
-                      </button>
-                      {entry.pointerChain && (
-                        <button onClick={() => void testPointer(entry)}>
-                          Test
-                        </button>
+                      <button onClick={() => void stabilizeTrainer(entry)}>Pointer</button>
+                      <button onClick={() => void configureSignature(entry)}>Signature</button>
+                      {(entry.pointerChain || entry.signature) && (
+                        <button onClick={() => void testStableTrainer(entry)}>Test</button>
                       )}
                       <button
                         className="danger"

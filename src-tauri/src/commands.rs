@@ -7,7 +7,7 @@ use tauri::State;
 
 use crate::models::{
     AddressMatch, PointerResolution, ProcessInfo, ProcessModule, ScanSession, ScanSummary,
-    ValueType,
+    SignatureResolution, ValueType,
 };
 use crate::{platform, scanner};
 
@@ -104,7 +104,7 @@ fn parse_offset(raw: &str) -> Result<i64, String> {
     } else {
         body.parse::<i64>()
     }
-    .map_err(|_| format!("Invalid pointer offset: {raw}"))?;
+    .map_err(|_| format!("Invalid offset: {raw}"))?;
 
     Ok(if negative { -parsed } else { parsed })
 }
@@ -113,11 +113,11 @@ fn add_offset(address: usize, offset: i64) -> Result<usize, String> {
     if offset >= 0 {
         address
             .checked_add(offset as usize)
-            .ok_or_else(|| "Pointer address overflowed".to_string())
+            .ok_or_else(|| "Address overflowed".to_string())
     } else {
         address
             .checked_sub(offset.unsigned_abs() as usize)
-            .ok_or_else(|| "Pointer address underflowed".to_string())
+            .ok_or_else(|| "Address underflowed".to_string())
     }
 }
 
@@ -137,6 +137,23 @@ fn read_pointer(pid: u32, address: usize) -> Result<usize, String> {
     }
 
     Ok(value)
+}
+
+fn find_module<'a>(
+    modules: &'a [ProcessModule],
+    module_name: &str,
+) -> Option<&'a ProcessModule> {
+    modules
+        .iter()
+        .find(|module| module.name.eq_ignore_ascii_case(module_name.trim()))
+        .or_else(|| {
+            modules.iter().find(|module| {
+                module
+                    .path
+                    .to_ascii_lowercase()
+                    .ends_with(&module_name.trim().to_ascii_lowercase())
+            })
+        })
 }
 
 #[tauri::command]
@@ -176,26 +193,15 @@ pub fn resolve_pointer_chain(
     }
 
     let modules = platform::list_modules(pid)?;
-    let module = modules
-        .iter()
-        .find(|module| module.name.eq_ignore_ascii_case(module_name.trim()))
-        .or_else(|| {
-            modules.iter().find(|module| {
-                module
-                    .path
-                    .to_ascii_lowercase()
-                    .ends_with(&module_name.trim().to_ascii_lowercase())
-            })
-        })
+    let module = find_module(&modules, &module_name)
         .ok_or_else(|| format!("Module not found: {module_name}"))?;
 
     let module_base = parse_address(&module.base_address)?;
-    let mut current = add_offset(module_base, parse_offset(&base_offset)?)?;
+    let parsed_base_offset = parse_offset(&base_offset)?;
+    let mut current = add_offset(module_base, parsed_base_offset)?;
     let mut steps = vec![format!(
-        "{} {} {} = 0x{current:X}",
-        module.name,
-        if parse_offset(&base_offset)? >= 0 { "+" } else { "-" },
-        base_offset.trim_start_matches(['+', '-'])
+        "{} {:+#X} = 0x{current:X}",
+        module.name, parsed_base_offset
     )];
 
     for raw_offset in offsets {
@@ -213,6 +219,56 @@ pub fn resolve_pointer_chain(
         address: format!("0x{current:X}"),
         module_base: module.base_address.clone(),
         steps,
+    })
+}
+
+#[tauri::command]
+pub fn find_signature(
+    pid: u32,
+    module_name: String,
+    pattern: String,
+    match_offset: String,
+    occurrence: usize,
+    offline_confirmed: bool,
+) -> Result<SignatureResolution, String> {
+    ensure_target_allowed(pid, offline_confirmed)?;
+
+    if occurrence >= 128 {
+        return Err("Signature occurrence must be between 0 and 127".to_string());
+    }
+
+    let modules = platform::list_modules(pid)?;
+    let module = find_module(&modules, &module_name)
+        .ok_or_else(|| format!("Module not found: {module_name}"))?;
+    let module_start = parse_address(&module.base_address)?;
+    let module_size = usize::try_from(module.size)
+        .map_err(|_| "Module is too large to scan on this platform".to_string())?;
+    let parsed_pattern = scanner::parse_signature(&pattern)?;
+    let regions = platform::readable_regions(pid)?;
+    let matches = scanner::signature_scan(
+        pid,
+        &parsed_pattern,
+        &regions,
+        module_start,
+        module_size,
+        occurrence + 1,
+    )?;
+
+    let matched = matches.get(occurrence).copied().ok_or_else(|| {
+        format!(
+            "Signature occurrence {} was not found in {}",
+            occurrence + 1,
+            module.name
+        )
+    })?;
+
+    let address = add_offset(matched, parse_offset(&match_offset)?)?;
+
+    Ok(SignatureResolution {
+        address: format!("0x{address:X}"),
+        match_address: format!("0x{matched:X}"),
+        module_base: module.base_address.clone(),
+        occurrence,
     })
 }
 

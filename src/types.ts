@@ -25,6 +25,20 @@ export interface PointerChainConfig {
   offsets: string[];
 }
 
+export interface SignatureResolution {
+  address: string;
+  match_address: string;
+  module_base: string;
+  occurrence: number;
+}
+
+export interface SignatureConfig {
+  moduleName: string;
+  pattern: string;
+  matchOffset: string;
+  occurrence: number;
+}
+
 export interface AddressMatch {
   address: string;
 }
@@ -47,4 +61,5 @@ export interface TrainerEntry {
   value: string;
   enabled: boolean;
   pointerChain?: PointerChainConfig;
+  signature?: SignatureConfig;
 }

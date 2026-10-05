@@ -1,8 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { clearScan, listProcesses, rescan, startScan, writeValue } from "./lib/api";
-import type { ProcessInfo, ScanSummary, TrainerEntry, ValueType } from "./types";
+import {
+  clearScan,
+  listModules,
+  listProcesses,
+  rescan,
+  resolvePointerChain,
+  startScan,
+  writeValue
+} from "./lib/api";
+import type {
+  ProcessInfo,
+  ProcessModule,
+  ScanSummary,
+  TrainerEntry,
+  ValueType
+} from "./types";
 
-const TRAINER_KEY = "recode.trainers.v1";
+const TRAINER_KEY = "recode.trainers.v2";
 
 function formatBytes(value: number) {
   const units = ["B", "KB", "MB", "GB"];
@@ -17,15 +31,22 @@ function formatBytes(value: number) {
 
 function loadTrainers(): TrainerEntry[] {
   try {
-    const raw = localStorage.getItem(TRAINER_KEY);
+    const raw =
+      localStorage.getItem(TRAINER_KEY) ??
+      localStorage.getItem("recode.trainers.v1");
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
   }
 }
 
+function parseHex(value: string) {
+  return BigInt(value);
+}
+
 export default function App() {
   const [processes, setProcesses] = useState<ProcessInfo[]>([]);
+  const [modules, setModules] = useState<ProcessModule[]>([]);
   const [processFilter, setProcessFilter] = useState("");
   const [selected, setSelected] = useState<ProcessInfo | null>(null);
   const [offlineConfirmed, setOfflineConfirmed] = useState(false);
@@ -47,8 +68,22 @@ export default function App() {
     }
   };
 
+  const refreshModules = async (process: ProcessInfo) => {
+    if (!offlineConfirmed) {
+      setModules([]);
+      return;
+    }
+
+    try {
+      const result = await listModules(process.pid, true);
+      setModules(result);
+    } catch {
+      setModules([]);
+    }
+  };
+
   useEffect(() => {
-    refresh();
+    void refresh();
   }, []);
 
   useEffect(() => {
@@ -56,29 +91,79 @@ export default function App() {
   }, [trainers]);
 
   useEffect(() => {
+    if (selected && offlineConfirmed) {
+      void refreshModules(selected);
+    } else {
+      setModules([]);
+    }
+  }, [selected?.pid, offlineConfirmed]);
+
+  useEffect(() => {
     const enabled = trainers.filter((entry) => entry.enabled);
     if (!enabled.length || !offlineConfirmed) return;
 
-    const timer = window.setInterval(() => {
-      for (const entry of enabled) {
-        void writeValue(
-          entry.pid,
-          entry.address,
-          entry.value,
-          entry.valueType,
-          true
-        ).catch(() => {
-          setTrainers((current) =>
-            current.map((item) =>
-              item.id === entry.id ? { ...item, enabled: false } : item
-            )
-          );
-        });
-      }
-    }, 350);
+    let cancelled = false;
+    let running = false;
 
-    return () => window.clearInterval(timer);
-  }, [trainers, offlineConfirmed]);
+    const applyEnabled = async () => {
+      if (running) return;
+      running = true;
+
+      try {
+        for (const entry of enabled) {
+          if (cancelled) break;
+
+          const liveProcess = processes.find(
+            (process) =>
+              process.name.toLowerCase() === entry.processName.toLowerCase()
+          );
+
+          if (!liveProcess) {
+            continue;
+          }
+
+          try {
+            let address = entry.address;
+
+            if (entry.pointerChain) {
+              const resolved = await resolvePointerChain(
+                liveProcess.pid,
+                entry.pointerChain.moduleName,
+                entry.pointerChain.baseOffset,
+                entry.pointerChain.offsets,
+                true
+              );
+              address = resolved.address;
+            }
+
+            await writeValue(
+              liveProcess.pid,
+              address,
+              entry.value,
+              entry.valueType,
+              true
+            );
+          } catch {
+            setTrainers((current) =>
+              current.map((item) =>
+                item.id === entry.id ? { ...item, enabled: false } : item
+              )
+            );
+          }
+        }
+      } finally {
+        running = false;
+      }
+    };
+
+    void applyEnabled();
+    const timer = window.setInterval(() => void applyEnabled(), 500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [trainers, offlineConfirmed, processes]);
 
   const filteredProcesses = useMemo(() => {
     const needle = processFilter.trim().toLowerCase();
@@ -184,12 +269,141 @@ export default function App() {
     );
   };
 
+  const stabilizeTrainer = async (entry: TrainerEntry) => {
+    const liveProcess =
+      processes.find(
+        (process) =>
+          process.name.toLowerCase() === entry.processName.toLowerCase()
+      ) ?? selected;
+
+    if (!liveProcess) {
+      setStatus("Start the game and select its process before stabilizing");
+      return;
+    }
+
+    let availableModules = modules;
+    if (selected?.pid !== liveProcess.pid || !availableModules.length) {
+      try {
+        availableModules = await listModules(liveProcess.pid, offlineConfirmed);
+      } catch (error) {
+        setStatus(String(error));
+        return;
+      }
+    }
+
+    const target = parseHex(entry.address);
+    const containing = availableModules.find((module) => {
+      const base = parseHex(module.base_address);
+      return target >= base && target < base + BigInt(module.size);
+    });
+
+    if (containing) {
+      const offset = target - parseHex(containing.base_address);
+      updateTrainer(entry.id, {
+        pid: liveProcess.pid,
+        pointerChain: {
+          moduleName: containing.name,
+          baseOffset: `0x${offset.toString(16).toUpperCase()}`,
+          offsets: []
+        }
+      });
+      setStatus(
+        `${entry.label} is now module-relative: ${containing.name}+0x${offset
+          .toString(16)
+          .toUpperCase()}`
+      );
+      return;
+    }
+
+    const defaultModule =
+      availableModules.find(
+        (module) =>
+          module.name.toLowerCase() === liveProcess.name.toLowerCase()
+      )?.name ??
+      availableModules[0]?.name ??
+      "";
+
+    const moduleName = window
+      .prompt("Base module name", defaultModule)
+      ?.trim();
+    if (!moduleName) return;
+
+    const baseOffset = window
+      .prompt("Base offset from the module (example: 0x1A2B30)", "0x0")
+      ?.trim();
+    if (!baseOffset) return;
+
+    const rawOffsets = window
+      .prompt(
+        "Pointer offsets, comma separated (example: 0x18, 0x30, 0x8). Leave blank for module-relative only.",
+        ""
+      )
+      ?.trim();
+
+    if (rawOffsets === undefined) return;
+
+    const offsets = rawOffsets
+      ? rawOffsets.split(",").map((value) => value.trim()).filter(Boolean)
+      : [];
+
+    try {
+      const resolved = await resolvePointerChain(
+        liveProcess.pid,
+        moduleName,
+        baseOffset,
+        offsets,
+        offlineConfirmed
+      );
+
+      updateTrainer(entry.id, {
+        pid: liveProcess.pid,
+        address: resolved.address,
+        pointerChain: { moduleName, baseOffset, offsets }
+      });
+      setStatus(`Pointer chain resolved to ${resolved.address}`);
+    } catch (error) {
+      setStatus(String(error));
+    }
+  };
+
+  const testPointer = async (entry: TrainerEntry) => {
+    if (!entry.pointerChain) return;
+
+    const liveProcess = processes.find(
+      (process) =>
+        process.name.toLowerCase() === entry.processName.toLowerCase()
+    );
+    if (!liveProcess) {
+      setStatus("Target game is not currently running");
+      return;
+    }
+
+    try {
+      const resolved = await resolvePointerChain(
+        liveProcess.pid,
+        entry.pointerChain.moduleName,
+        entry.pointerChain.baseOffset,
+        entry.pointerChain.offsets,
+        offlineConfirmed
+      );
+      updateTrainer(entry.id, {
+        pid: liveProcess.pid,
+        address: resolved.address
+      });
+      setStatus(
+        `Resolved ${entry.label} → ${resolved.address} in ${resolved.steps.length} step(s)`
+      );
+    } catch (error) {
+      setStatus(String(error));
+    }
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v0.1.0</div>
+          <div className="subtitle">offline trainer toolkit · v0.2.0</div>
         </div>
         <div className="status-pill">
           <span className="status-dot" />
@@ -256,7 +470,7 @@ export default function App() {
               <h1>{selected?.name ?? "No process selected"}</h1>
               <p>
                 {selected
-                  ? selected.path || `PID ${selected.pid}`
+                  ? `${selected.path || `PID ${selected.pid}`} · ${modules.length} modules`
                   : "Choose a local game process from the list."}
               </p>
             </div>
@@ -397,6 +611,22 @@ export default function App() {
                         <span />
                       </label>
                     </div>
+
+                    <div className="trainer-meta">
+                      {entry.pointerChain ? (
+                        <span className="stable-badge">
+                          STABLE · {entry.pointerChain.moduleName}
+                          {entry.pointerChain.baseOffset.startsWith("-") ? "" : "+"}
+                          {entry.pointerChain.baseOffset}
+                          {entry.pointerChain.offsets.length
+                            ? ` → ${entry.pointerChain.offsets.join(" → ")}`
+                            : ""}
+                        </span>
+                      ) : (
+                        <span className="raw-badge">RAW ADDRESS</span>
+                      )}
+                    </div>
+
                     <div className="trainer-edit">
                       <input
                         className="input"
@@ -421,6 +651,14 @@ export default function App() {
                         <option value="f32">f32</option>
                         <option value="f64">f64</option>
                       </select>
+                      <button onClick={() => void stabilizeTrainer(entry)}>
+                        Stabilize
+                      </button>
+                      {entry.pointerChain && (
+                        <button onClick={() => void testPointer(entry)}>
+                          Test
+                        </button>
+                      )}
                       <button
                         className="danger"
                         onClick={() =>

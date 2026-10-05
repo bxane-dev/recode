@@ -3,8 +3,8 @@ use std::mem::{size_of, zeroed};
 use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Diagnostics::Debug::{ReadProcessMemory, WriteProcessMemory};
 use windows_sys::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
-    TH32CS_SNAPPROCESS,
+    CreateToolhelp32Snapshot, Module32FirstW, Module32NextW, Process32FirstW, Process32NextW,
+    MODULEENTRY32W, PROCESSENTRY32W, TH32CS_SNAPMODULE, TH32CS_SNAPMODULE32, TH32CS_SNAPPROCESS,
 };
 use windows_sys::Win32::System::Memory::{
     VirtualQueryEx, MEMORY_BASIC_INFORMATION, MEM_COMMIT, PAGE_EXECUTE_READWRITE,
@@ -16,7 +16,7 @@ use windows_sys::Win32::System::Threading::{
     PROCESS_VM_WRITE,
 };
 
-use crate::models::{MemoryRegion, ProcessInfo};
+use crate::models::{MemoryRegion, ProcessInfo, ProcessModule};
 
 fn utf16_to_string(buffer: &[u16]) -> String {
     let end = buffer.iter().position(|value| *value == 0).unwrap_or(buffer.len());
@@ -71,6 +71,38 @@ pub fn list_processes() -> Result<Vec<ProcessInfo>, String> {
 
     unsafe { CloseHandle(snapshot) };
     Ok(output)
+}
+
+pub fn list_modules(pid: u32) -> Result<Vec<ProcessModule>, String> {
+    let snapshot = unsafe {
+        CreateToolhelp32Snapshot(TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid)
+    };
+    if snapshot == INVALID_HANDLE_VALUE {
+        return Err("Unable to enumerate modules for the target process".to_string());
+    }
+
+    let mut entry: MODULEENTRY32W = unsafe { zeroed() };
+    entry.dwSize = size_of::<MODULEENTRY32W>() as u32;
+
+    let mut modules = Vec::new();
+    let mut ok = unsafe { Module32FirstW(snapshot, &mut entry) };
+
+    while ok != 0 {
+        let name = utf16_to_string(&entry.szModule);
+        let path = utf16_to_string(&entry.szExePath);
+
+        modules.push(ProcessModule {
+            name,
+            path,
+            base_address: format!("0x{:X}", entry.modBaseAddr as usize),
+            size: entry.modBaseSize as u64,
+        });
+
+        ok = unsafe { Module32NextW(snapshot, &mut entry) };
+    }
+
+    unsafe { CloseHandle(snapshot) };
+    Ok(modules)
 }
 
 fn open_for_read(pid: u32) -> Result<*mut core::ffi::c_void, String> {

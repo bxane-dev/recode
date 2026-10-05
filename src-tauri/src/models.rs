@@ -7,6 +7,21 @@ pub struct ProcessInfo {
     pub path: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessModule {
+    pub name: String,
+    pub path: String,
+    pub base_address: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PointerResolution {
+    pub address: String,
+    pub module_base: String,
+    pub steps: Vec<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct MemoryRegion {
     pub start: usize,

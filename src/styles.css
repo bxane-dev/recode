@@ -460,3 +460,37 @@ button:disabled {
     min-height: 360px;
   }
 }
+
+.trainer-meta {
+  margin-top: 9px;
+}
+
+.stable-badge,
+.raw-badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stable-badge {
+  border: 1px solid #3a5132;
+  background: #151d13;
+  color: #a9dc8f;
+}
+
+.raw-badge {
+  border: 1px solid #3a3d43;
+  background: #16181b;
+  color: #8b929b;
+}
+
+.trainer-edit {
+  grid-template-columns: minmax(80px, 1fr) 72px auto auto auto;
+}

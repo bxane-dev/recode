@@ -6,6 +6,25 @@ export interface ProcessInfo {
   path: string | null;
 }
 
+export interface ProcessModule {
+  name: string;
+  path: string;
+  base_address: string;
+  size: number;
+}
+
+export interface PointerResolution {
+  address: string;
+  module_base: string;
+  steps: string[];
+}
+
+export interface PointerChainConfig {
+  moduleName: string;
+  baseOffset: string;
+  offsets: string[];
+}
+
 export interface AddressMatch {
   address: string;
 }
@@ -27,4 +46,5 @@ export interface TrainerEntry {
   valueType: ValueType;
   value: string;
   enabled: boolean;
+  pointerChain?: PointerChainConfig;
 }

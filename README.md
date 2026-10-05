@@ -42,10 +42,20 @@ chmod +x Recode-Linux-x64.AppImage
 - Exact-value scans for i32, u32, i64, u64, f32 and f64
 - Rescans to narrow addresses after values change
 - Direct value editing
-- Saved trainer entries with optional freeze toggles
+- Saved trainer entries with optional freeze toggles\n- Loaded-module detection on Windows and Linux\n- Module-relative addresses and multi-level pointer-chain resolution for restart-stable trainers
 - Offline-use acknowledgement and anti-cheat process guardrails
 - GitHub Actions installer builds for Windows and Linux
 - Tag-based GitHub releases
+
+## Stable trainers
+
+Recode v0.2 can resolve trainers from a loaded module plus a base offset and optional pointer offsets. When a trainer is enabled, Recode rebinds it to the currently running process with the same executable name and resolves the chain again before writing. Static addresses inside a module can be converted automatically with **Stabilize**; heap values can use a manually supplied pointer chain.
+
+Example:
+
+```text
+Game.exe + 0x01F0A120 → 0x18 → 0x30 → 0x8
+```
 
 ## Scope
 

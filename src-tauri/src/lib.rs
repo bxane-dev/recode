@@ -11,6 +11,8 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             commands::list_processes,
+            commands::list_modules,
+            commands::resolve_pointer_chain,
             commands::start_scan,
             commands::rescan,
             commands::write_value,

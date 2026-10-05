@@ -1,7 +1,31 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ProcessInfo, ScanSummary, ValueType } from "../types";
+import type {
+  PointerResolution,
+  ProcessInfo,
+  ProcessModule,
+  ScanSummary,
+  ValueType
+} from "../types";
 
 export const listProcesses = () => invoke<ProcessInfo[]>("list_processes");
+
+export const listModules = (pid: number, offlineConfirmed: boolean) =>
+  invoke<ProcessModule[]>("list_modules", { pid, offlineConfirmed });
+
+export const resolvePointerChain = (
+  pid: number,
+  moduleName: string,
+  baseOffset: string,
+  offsets: string[],
+  offlineConfirmed: boolean
+) =>
+  invoke<PointerResolution>("resolve_pointer_chain", {
+    pid,
+    moduleName,
+    baseOffset,
+    offsets,
+    offlineConfirmed
+  });
 
 export const startScan = (
   pid: number,

@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.3.0 — 2026-10-05
+
+### Added
+- AI-assisted trainer builder workflow compatible with ChatGPT, Claude, Gemini, local models, and other assistants.
+- Upload + Apply for generated Recode profiles and compatible Cheat Engine tables.
+- Recode Hub one-click trainer discovery and apply flow.
+- Automatic Steam, GOG, and Epic game detection integration with Hub matching.
+- Optional automatic compatible-trainer discovery.
+- Remember-enabled-cheats setting for the next session.
+- Explicit opt-in consent before publishing community trainer profiles.
+- Dedicated Supabase-backed Recode Hub database with RLS-protected published profiles and private submission records.
+- Live Supabase Hub lookup with GitHub catalog fallback.
+- Rotated Tauri updater verification key for future signed Windows/Linux updates.
+
+### Desktop packages
+- Windows x64 NSIS installer with no console/terminal window.
+- Linux x64 Debian package.
+- Linux x64 AppImage.
+
+### Safety
+- Hub/community data is restricted to validated data-only trainer profiles.
+- Offline/single-player confirmation remains required for memory operations.
+- No anti-cheat bypass, DRM bypass, or online-service manipulation.
+
+
 ## 1.2.0 — 2026-10-05
 
 ### Added

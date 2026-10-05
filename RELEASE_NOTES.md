@@ -19,6 +19,7 @@ Recode 1.3 adds the AI Builder and community-published trainer Hub workflow.
 - Windows NSIS installer with GUI subsystem enabled: no terminal/console window
 - Linux DEB and AppImage
 - Steam, GOG and Epic library detection
+- Live Supabase-backed Recode Hub with GitHub catalog fallback
 - Recode Hub, profiles, hotkeys, signatures and pointer chains
 - Auto-updater support when signing secrets are configured
 

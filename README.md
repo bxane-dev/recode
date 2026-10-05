@@ -52,6 +52,7 @@ chmod +x Recode-Linux-x64.AppImage
 - Trainer profile library with per-game collections
 - JSON profile import/export
 - Global trainer hotkeys on Windows and Linux
+- Signed automatic updates through GitHub Releases
 - Tag-based GitHub releases
 
 ## Stable trainers
@@ -81,6 +82,23 @@ Recode stores trainers in named profiles. A profile contains its game executable
 Profiles can be exported as `*.recode.json` files and imported on another Recode installation. Imported entries are disabled by default until the user explicitly enables them.
 
 Hotkeys use Tauri's native global-shortcut support. Examples include `F6`, `Control+Shift+H` and `Alt+F8`. Recode registers only the active profile's shortcuts.
+
+## Automatic updates
+
+Recode 1.0.1+ checks the latest GitHub Release shortly after startup. Users can also press **Check updates** in the header. When a newer signed release is available, Recode offers to download and install it, then restarts where the platform requires it.
+
+Updates are verified with Tauri's updater signature before installation. The release workflow publishes `latest.json`, the Windows/Linux updater signatures, the normal installers and SHA-256 checksums.
+
+The original v1.0.0 release did not contain the updater plugin, so v1.0.0 users must install v1.0.1 (or newer) manually once. After that, future releases can update in-app.
+
+### Maintainer signing setup
+
+The repository needs these GitHub Actions secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+
+The private updater key must never be committed. Losing the key prevents future signed updates to existing installations.
 
 ## Scope
 

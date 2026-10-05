@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check } from "@tauri-apps/plugin-updater";
 import {
   register,
   unregisterAll
@@ -96,6 +98,7 @@ export default function App() {
   const [scanValue, setScanValue] = useState("100");
   const [scan, setScan] = useState<ScanSummary | null>(null);
   const [busy, setBusy] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [status, setStatus] = useState("Ready");
 
   const activeProfile =
@@ -126,6 +129,51 @@ export default function App() {
     }));
   };
 
+  const checkForUpdates = async (manual = false) => {
+    if (checkingUpdate) return;
+
+    setCheckingUpdate(true);
+    if (manual) setStatus("Checking for updates…");
+
+    try {
+      const update = await check();
+
+      if (!update) {
+        if (manual) setStatus("Recode is up to date");
+        return;
+      }
+
+      setStatus(`Recode ${update.version} is available`);
+
+      const install = window.confirm(
+        `Recode ${update.version} is available. Download and install it now?`
+      );
+
+      if (!install) {
+        await update.close();
+        setStatus(`Update ${update.version} is available`);
+        return;
+      }
+
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          setStatus(`Downloading Recode ${update.version}…`);
+        } else if (event.event === "Finished") {
+          setStatus("Installing update…");
+        }
+      });
+
+      setStatus("Update installed. Restarting…");
+      await relaunch();
+    } catch (error) {
+      if (manual) {
+        setStatus(`Update check failed: ${String(error)}`);
+      }
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   const refresh = async () => {
     try {
       setStatus("Reading processes…");
@@ -153,6 +201,14 @@ export default function App() {
 
   useEffect(() => {
     void refresh();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void checkForUpdates(false);
+    }, 2500);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -785,11 +841,20 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.0.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.0.1</div>
         </div>
-        <div className="status-pill">
-          <span className="status-dot" />
-          {status}
+        <div className="topbar-actions">
+          <button
+            className="ghost update-button"
+            disabled={checkingUpdate}
+            onClick={() => void checkForUpdates(true)}
+          >
+            {checkingUpdate ? "Checking…" : "Check updates"}
+          </button>
+          <div className="status-pill">
+            <span className="status-dot" />
+            {status}
+          </div>
         </div>
       </header>
 

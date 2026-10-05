@@ -7,3 +7,7 @@ Thumbs.db
 
 src-tauri/target/
 src-tauri/gen/
+
+# Never commit updater signing keys
+recode-updater.key
+recode-updater.key.pub

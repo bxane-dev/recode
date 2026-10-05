@@ -581,3 +581,17 @@ button:disabled {
     justify-content: flex-start;
   }
 }
+
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.update-button {
+  padding: 8px 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}

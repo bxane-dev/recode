@@ -1,32 +1,22 @@
-# Recode v1.0.0
+# Recode v1.0.1
 
-Recode 1.0 is the first stable release of the open-source offline/single-player trainer toolkit.
+This release adds Recode's signed automatic updater.
 
-## Included
+## Added
 
-- Windows and Linux native desktop builds
-- Exact-value memory scanning and rescanning for signed/unsigned 32/64-bit integers and 32/64-bit floats
-- Direct value editing and freeze-style trainer entries
-- Loaded-module detection
-- Module-relative addresses and multi-level pointer chains
-- AOB/signature scanning with wildcard bytes and result offsets
-- Per-game trainer profiles
-- JSON profile import/export
-- Global trainer hotkeys
-- Offline/single-player confirmation and known anti-cheat/security-process guardrails
-- Windows NSIS installer
-- Linux Debian package and AppImage
+- Automatic update checks shortly after startup
+- Manual **Check updates** button
+- Signed update download and installation
+- Tauri signed-version verification
+- GitHub Releases `latest.json` update feed
+- Windows NSIS updater signature
+- Linux AppImage updater signature
 - SHA-256 checksums for release assets
 
-## Downloads
+## Upgrade note
 
-- `Recode-Setup-Windows-x64.exe`
-- `Recode-Linux-x64.deb`
-- `Recode-Linux-x64.AppImage`
-- `SHA256SUMS.txt`
+Recode v1.0.0 did not include the updater plugin. Install v1.0.1 manually once; releases after v1.0.1 can be installed through Recode itself.
 
 ## Scope
 
-Recode is intended only for local experimentation, accessibility and modding in offline/single-player games you are allowed to modify. It does not include anti-cheat bypasses, protection evasion, kernel drivers, DRM bypasses or online-service manipulation.
-
-Windows release binaries are currently not code-signed, so Windows SmartScreen may display an unknown-publisher warning.
+Recode remains limited to offline/single-player modding and local experimentation. It does not include anti-cheat bypasses, protection evasion, kernel drivers, DRM bypasses or online-service manipulation.

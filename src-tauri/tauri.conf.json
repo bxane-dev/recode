@@ -64,7 +64,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDI3ODdERENCNzFCRDIzODkKUldTSkk3MXh5OTJISjBqTWg1aTJqWmhzblpSeTJWWmZIK21FancrZkpHYXBHbmxpYmgvZlFROEcK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFDOEFEQjJCQUExNzdCNEQKUldSTmV4ZXFLOXVLSE9SZ3hsMTJvS05NSmgyeHA3UUs0YTVBeXBRaVpLM3FMV1hkczR2OS9xSWgK",
       "endpoints": [
         "https://github.com/bxane-dev/recode/releases/latest/download/latest.json"
       ],

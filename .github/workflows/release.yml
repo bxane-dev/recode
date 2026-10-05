@@ -51,18 +51,15 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Detect updater signing
-        id: signing
+      - name: Verify updater signing secrets
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         shell: bash
         run: |
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "Updater signing secret is not configured; publishing regular installers only."
-          fi
+          set -euo pipefail
+          test -n "$TAURI_SIGNING_PRIVATE_KEY"
+          test -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
 
       - name: Build frontend
         run: npm run build
@@ -72,15 +69,10 @@ jobs:
         run: cargo test
 
       - name: Build signed installers and updater artifacts
-        if: steps.signing.outputs.enabled == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --bundles ${{ matrix.bundles }} --config src-tauri/tauri.updater.conf.json
-
-      - name: Build regular installers
-        if: steps.signing.outputs.enabled != 'true'
-        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
 
       - name: Prepare Windows release assets
         if: matrix.os == 'windows-latest'

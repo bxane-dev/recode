@@ -138,6 +138,10 @@ The repository needs these GitHub Actions secrets:
 
 The private updater key must never be committed. Losing the key prevents future signed updates to existing installations.
 
+Current updater signing key ID: `1C8ADB2BAA177B4D`.
+
+The release workflow now requires both updater signing secrets, so Windows/Linux releases cannot be published without signed updater artifacts. macOS is not currently part of Recode's build matrix.
+
 ## Scope
 
 Recode is for local experimentation, modding and accessibility in offline/single-player games you are allowed to modify. The project intentionally does not include anti-cheat bypasses, kernel drivers, stealth/injection mechanisms, network manipulation, credential access, or DRM bypasses.

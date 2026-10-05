@@ -51,15 +51,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify updater signing secrets
+      - name: Detect updater signing
+        id: signing
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         shell: bash
         run: |
-          set -euo pipefail
-          test -n "$TAURI_SIGNING_PRIVATE_KEY"
-          test -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD"
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Updater signing secrets are not configured; publishing regular installers."
+          fi
 
       - name: Build frontend
         run: npm run build
@@ -69,10 +73,15 @@ jobs:
         run: cargo test
 
       - name: Build signed installers and updater artifacts
+        if: steps.signing.outputs.enabled == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --bundles ${{ matrix.bundles }} --config src-tauri/tauri.updater.conf.json
+
+      - name: Build regular installers
+        if: steps.signing.outputs.enabled != 'true'
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
 
       - name: Prepare Windows release assets
         if: matrix.os == 'windows-latest'
@@ -133,11 +142,18 @@ jobs:
           test "$VERSION" = "v$PACKAGE_VERSION"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - name: Create updater manifest
+      - name: Create updater manifest when signed artifacts exist
         env:
           VERSION: ${{ env.VERSION }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node scripts/create-updater-manifest.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f release-assets/Recode-Setup-Windows-x64.exe.sig ] && [ -f release-assets/Recode-Linux-x64.AppImage.sig ]; then
+            node scripts/create-updater-manifest.mjs
+          else
+            echo "Signed updater artifacts are unavailable; skipping latest.json."
+          fi
 
       - name: Create checksums
         working-directory: release-assets

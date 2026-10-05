@@ -88,3 +88,19 @@ export const readProfileFile = (path: string) =>
 
 export const writeProfileFile = (path: string, content: string) =>
   invoke<void>("write_profile_file", { path, content });
+
+
+export const generateAiTrainer = (
+  provider: "openai" | "anthropic" | "gemini" | "compatible",
+  apiKey: string,
+  model: string,
+  endpoint: string | null,
+  prompt: string
+) =>
+  invoke<string>("generate_ai_trainer", {
+    provider,
+    apiKey,
+    model,
+    endpoint,
+    prompt
+  });

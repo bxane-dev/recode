@@ -1,3 +1,4 @@
+mod ai;
 mod commands;
 mod models;
 mod platform;
@@ -26,7 +27,8 @@ pub fn run() {
             commands::write_value,
             commands::clear_scan,
             commands::read_profile_file,
-            commands::write_profile_file
+            commands::write_profile_file,
+            ai::generate_ai_trainer
         ])
         .run(tauri::generate_context!())
         .expect("error while running Recode");

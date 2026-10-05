@@ -370,8 +370,8 @@ fn ensure_profile_path(path: &str) -> Result<std::path::PathBuf, String> {
         .ok_or_else(|| "Invalid profile file name".to_string())?;
 
     let lower = file_name.to_ascii_lowercase();
-    if !lower.ends_with(".json") && !lower.ends_with(".ct") {
-        return Err("Trainer files must use the .json or .ct extension".to_string());
+    if !lower.ends_with(".rc") && !lower.ends_with(".json") && !lower.ends_with(".ct") {
+        return Err("Trainer files must use the .rc, .json, or .ct extension".to_string());
     }
 
     Ok(path)

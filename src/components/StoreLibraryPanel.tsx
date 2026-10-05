@@ -91,7 +91,9 @@ export default function StoreLibraryPanel(props: Props) {
         <button disabled={loading} onClick={() => void scan(false)}>{loading ? "Scanning…" : "Rescan"}</button>
       </div>
       <div className="library-settings">
-        <label><input type="checkbox" checked={settings.autoDetectStores} onChange={(event) => setOption("autoDetectStores", event.target.checked)} />Auto-detect libraries</label>\n        <label><input type="checkbox" checked={settings.autoDownloadCompatible} onChange={(event) => setOption("autoDownloadCompatible", event.target.checked)} />Auto-find compatible trainer data</label>\n        <label><input type="checkbox" checked={settings.rememberCheatSelection} onChange={(event) => setOption("rememberCheatSelection", event.target.checked)} />Remember enabled cheats next session</label>
+        <label><input type="checkbox" checked={settings.autoDetectStores} onChange={(event) => setOption("autoDetectStores", event.target.checked)} />Auto-detect libraries</label>
+        <label><input type="checkbox" checked={settings.autoDownloadCompatible} onChange={(event) => setOption("autoDownloadCompatible", event.target.checked)} />Auto-find compatible trainer data</label>
+        <label><input type="checkbox" checked={settings.rememberCheatSelection} onChange={(event) => setOption("rememberCheatSelection", event.target.checked)} />Remember enabled cheats next session</label>
       </div>
       <input className="input" placeholder="Filter installed games" value={query} onChange={(event) => setQuery(event.target.value)} />
       <div className="library-list">

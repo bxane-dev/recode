@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
-import HubPanel from "./components/HubPanel";\nimport AiBuilderPanel from "./components/AiBuilderPanel";
+import HubPanel from "./components/HubPanel";
+import AiBuilderPanel from "./components/AiBuilderPanel";
 import StoreLibraryPanel from "./components/StoreLibraryPanel";
 import { parseCheatEngineTable } from "./lib/cheatEngine";
 import { loadSettings, saveSettings } from "./lib/settings";
@@ -662,8 +663,8 @@ export default function App() {
     const entry: TrainerEntry = {
       id: crypto.randomUUID(),
       label,
-      pid: selected?.pid ?? 0,
-      processName: targetProcess,
+      pid: selected.pid,
+      processName: selected.name,
       address,
       valueType,
       value: scanValue,

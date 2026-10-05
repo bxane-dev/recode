@@ -1,22 +1,25 @@
-# Recode v1.0.1
+# Recode v1.1.0
 
-This release adds Recode's signed automatic updater.
+Recode 1.1 adds one-click online trainer discovery and broader safe trainer compatibility.
 
 ## Added
 
-- Automatic update checks shortly after startup
-- Manual **Check updates** button
-- Signed update download and installation
-- Tauri signed-version verification
-- GitHub Releases `latest.json` update feed
-- Windows NSIS updater signature
-- Linux AppImage updater signature
-- SHA-256 checksums for release assets
+- Recode Hub online trainer catalog
+- **1-Click Apply** for profiles matching the selected offline game
+- Cheat Engine `.CT` import for compatible numeric addresses and pointer chains
+- Direct Recode/CT import from GitHub Raw and GitHub Gist URLs
+- Automatic profile installation and enablement after one-click apply
+- Input normalization and validation for imported pointer/signature data
+- Existing signed auto-updater support remains built in
+
+## Compatibility limits
+
+Recode does not execute arbitrary trainer EXEs, DLLs, Cheat Engine Auto Assembler scripts or Lua code. Wand/WeMod uses a proprietary encrypted trainer architecture, so its trainers are not extracted or redistributed by Recode.
 
 ## Upgrade note
 
-Recode v1.0.0 did not include the updater plugin. Install v1.0.1 manually once; releases after v1.0.1 can be installed through Recode itself.
+v1.0.0 users need to install v1.1.0 manually once because v1.0.0 did not include the updater plugin. Future signed releases can update from inside Recode.
 
 ## Scope
 
-Recode remains limited to offline/single-player modding and local experimentation. It does not include anti-cheat bypasses, protection evasion, kernel drivers, DRM bypasses or online-service manipulation.
+Offline/single-player games only. No anti-cheat bypassing, DRM circumvention or online-service manipulation.

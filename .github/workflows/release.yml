@@ -51,11 +51,18 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify updater signing secrets
+      - name: Detect updater signing
+        id: signing
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: node -e "if (!process.env.TAURI_SIGNING_PRIVATE_KEY || process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD === undefined) { console.error('Missing Tauri updater signing secrets.'); process.exit(1) }"
+        shell: bash
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Updater signing secret is not configured; publishing regular installers only."
+          fi
 
       - name: Build frontend
         run: npm run build
@@ -64,11 +71,16 @@ jobs:
         working-directory: src-tauri
         run: cargo test
 
-      - name: Build installers and signed updater artifacts
+      - name: Build signed installers and updater artifacts
+        if: steps.signing.outputs.enabled == 'true'
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri build -- --bundles ${{ matrix.bundles }} --config src-tauri/tauri.updater.conf.json
+
+      - name: Build regular installers
+        if: steps.signing.outputs.enabled != 'true'
+        run: npm run tauri build -- --bundles ${{ matrix.bundles }}
 
       - name: Prepare Windows release assets
         if: matrix.os == 'windows-latest'
@@ -78,9 +90,10 @@ jobs:
           $setup = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
           if (-not $setup) { throw "NSIS setup executable was not produced." }
           $sig = "$($setup.FullName).sig"
-          if (-not (Test-Path $sig)) { throw "NSIS updater signature was not produced." }
           Copy-Item $setup.FullName "release-assets/Recode-Setup-Windows-x64.exe"
-          Copy-Item $sig "release-assets/Recode-Setup-Windows-x64.exe.sig"
+          if (Test-Path $sig) {
+            Copy-Item $sig "release-assets/Recode-Setup-Windows-x64.exe.sig"
+          }
 
       - name: Prepare Linux release assets
         if: matrix.os == 'ubuntu-22.04'
@@ -92,10 +105,11 @@ jobs:
           APPIMAGE="$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' | head -n 1)"
           test -n "$DEB"
           test -n "$APPIMAGE"
-          test -f "$APPIMAGE.sig"
           cp "$DEB" release-assets/Recode-Linux-x64.deb
           cp "$APPIMAGE" release-assets/Recode-Linux-x64.AppImage
-          cp "$APPIMAGE.sig" release-assets/Recode-Linux-x64.AppImage.sig
+          if [ -f "$APPIMAGE.sig" ]; then
+            cp "$APPIMAGE.sig" release-assets/Recode-Linux-x64.AppImage.sig
+          fi
           chmod +x release-assets/Recode-Linux-x64.AppImage
 
       - uses: actions/upload-artifact@v4
@@ -135,7 +149,10 @@ jobs:
 
       - name: Create checksums
         working-directory: release-assets
-        run: sha256sum Recode-* latest.json > SHA256SUMS.txt
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS.txt
 
       - name: Publish release
         env:

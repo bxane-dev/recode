@@ -595,3 +595,81 @@ button:disabled {
   font-size: 10px;
   white-space: nowrap;
 }
+
+
+.hub-card {
+  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px solid #26301f;
+  border-radius: 12px;
+  background: #10140d;
+}
+
+.hub-heading,
+.hub-entry,
+.hub-url {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hub-heading h2 {
+  margin: 2px 0 4px;
+}
+
+.hub-heading p,
+.hub-entry p {
+  margin: 0;
+  color: #7d8577;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.hub-results {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.hub-entry {
+  padding: 10px 11px;
+  border: 1px solid #2b3425;
+  border-radius: 9px;
+  background: #121710;
+}
+
+.hub-entry strong,
+.hub-entry small {
+  display: block;
+}
+
+.hub-entry small {
+  margin-top: 3px;
+  color: #8a9482;
+  font-size: 9px;
+}
+
+.hub-url {
+  margin-top: 12px;
+}
+
+.hub-url .input {
+  flex: 1;
+}
+
+.hub-note {
+  margin-top: 9px;
+  color: #6f776a;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 850px) {
+  .hub-heading,
+  .hub-entry,
+  .hub-url {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

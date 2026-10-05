@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
+import HubPanel from "./components/HubPanel";
+import { parseCheatEngineTable } from "./lib/cheatEngine";
 import {
   register,
   unregisterAll
@@ -450,15 +452,22 @@ export default function App() {
   const importProfile = async () => {
     try {
       const path = await open({
-        title: "Import Recode profile",
+        title: "Import trainer profile",
         multiple: false,
         directory: false,
-        filters: [{ name: "Recode profile", extensions: ["json"] }]
+        filters: [
+          { name: "Recode / Cheat Engine", extensions: ["json", "ct"] }
+        ]
       });
       if (!path || Array.isArray(path)) return;
 
       const raw = await readProfileFile(path);
-      const imported = parseProfileFile(raw);
+      const imported = path.toLowerCase().endsWith(".ct")
+        ? parseCheatEngineTable(
+            raw,
+            selected?.name ?? activeProfile?.processName ?? ""
+          )
+        : parseProfileFile(raw);
       setProfiles((current) => [...current, imported]);
       setActiveProfileId(imported.id);
       setStatus(
@@ -467,6 +476,51 @@ export default function App() {
     } catch (error) {
       setStatus(`Import failed: ${String(error)}`);
     }
+  };
+
+  const installHubProfile = (
+    profile: TrainerProfile,
+    autoApply: boolean
+  ) => {
+    if (!selected) {
+      setStatus("Select the target game first");
+      return;
+    }
+
+    const target = selected.name.toLowerCase();
+    const profileTarget = profile.processName.toLowerCase();
+    if (profileTarget && profileTarget !== target) {
+      setStatus(
+        `Trainer targets ${profile.processName}, not ${selected.name}`
+      );
+      return;
+    }
+
+    const installed: TrainerProfile = {
+      ...profile,
+      id: crypto.randomUUID(),
+      name: profile.name.includes("(Hub)")
+        ? profile.name
+        : `${profile.name} (Hub)`,
+      processName: selected.name,
+      trainers: profile.trainers.map((entry) => ({
+        ...entry,
+        id: crypto.randomUUID(),
+        pid: selected.pid,
+        processName: selected.name,
+        enabled: Boolean(autoApply && offlineConfirmed)
+      })),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    setProfiles((current) => [...current, installed]);
+    setActiveProfileId(installed.id);
+    setStatus(
+      autoApply
+        ? `Applied ${installed.trainers.length} trainer entries from ${installed.name}`
+        : `Installed ${installed.name}`
+    );
   };
 
   const configureHotkey = (entry: TrainerEntry) => {
@@ -841,7 +895,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.0.1</div>
+          <div className="subtitle">offline trainer toolkit · v1.1.0</div>
         </div>
         <div className="topbar-actions">
           <button
@@ -931,6 +985,13 @@ export default function App() {
               <button className="danger" onClick={deleteProfile}>Delete</button>
             </div>
           </div>
+
+          <HubPanel
+            selected={selected}
+            offlineConfirmed={offlineConfirmed}
+            onInstall={installHubProfile}
+            onStatus={setStatus}
+          />
 
           <div className="target-card">
             <div>

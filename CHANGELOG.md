@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0 — 2026-10-05
+
+### Added
+- Recode Hub online trainer catalog.
+- One-click profile import and apply for a selected offline game.
+- Safe Cheat Engine `.CT` import for numeric address and pointer entries.
+- Direct GitHub Raw/Gist trainer URL import and apply.
+- Hub profile matching by game process name.
+- Strict data-only remote trainer handling; no downloaded executables or scripts are run.
+
+### Compatibility
+- Native Recode profiles are fully supported.
+- Cheat Engine Auto Assembler/Lua/script entries are intentionally skipped.
+- Wand/WeMod trainers are proprietary/encrypted and remain in the official Wand application.
+
 ## 1.0.1 — 2026-10-05
 
 ### Added

@@ -364,8 +364,9 @@ fn ensure_profile_path(path: &str) -> Result<std::path::PathBuf, String> {
         .and_then(|value| value.to_str())
         .ok_or_else(|| "Invalid profile file name".to_string())?;
 
-    if !file_name.to_ascii_lowercase().ends_with(".json") {
-        return Err("Recode profile files must use the .json extension".to_string());
+    let lower = file_name.to_ascii_lowercase();
+    if !lower.ends_with(".json") && !lower.ends_with(".ct") {
+        return Err("Trainer files must use the .json or .ct extension".to_string());
     }
 
     Ok(path)

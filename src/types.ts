@@ -80,3 +80,22 @@ export interface TrainerProfileFile {
   version: 1;
   profile: TrainerProfile;
 }
+
+export interface HubEntry {
+  id: string;
+  title: string;
+  game: string;
+  processNames: string[];
+  description?: string;
+  author?: string;
+  profileUrl: string;
+  sourceUrl?: string;
+  verified?: boolean;
+  tags?: string[];
+}
+
+export interface HubCatalog {
+  schema: "recode.hub";
+  version: 1;
+  entries: HubEntry[];
+}

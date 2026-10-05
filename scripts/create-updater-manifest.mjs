@@ -11,11 +11,22 @@ if (!versionTag || !repository) {
 const version = versionTag.replace(/^v/, "");
 const dir = path.resolve("release-assets");
 
-const readSignature = (name) =>
-  fs.readFileSync(path.join(dir, `${name}.sig`), "utf8").trim();
+const readSignature = (name) => {
+  const signaturePath = path.join(dir, `${name}.sig`);
+  if (!fs.existsSync(signaturePath)) return null;
+  return fs.readFileSync(signaturePath, "utf8").trim();
+};
 
 const releaseUrl = (name) =>
   `https://github.com/${repository}/releases/download/${versionTag}/${name}`;
+
+const windowsSignature = readSignature("Recode-Setup-Windows-x64.exe");
+const linuxSignature = readSignature("Recode-Linux-x64.AppImage");
+
+if (!windowsSignature || !linuxSignature) {
+  console.log("Updater signatures are not present; skipping latest.json.");
+  process.exit(0);
+}
 
 const manifest = {
   version,
@@ -23,11 +34,11 @@ const manifest = {
   pub_date: new Date().toISOString(),
   platforms: {
     "windows-x86_64": {
-      signature: readSignature("Recode-Setup-Windows-x64.exe"),
+      signature: windowsSignature,
       url: releaseUrl("Recode-Setup-Windows-x64.exe")
     },
     "linux-x86_64": {
-      signature: readSignature("Recode-Linux-x64.AppImage"),
+      signature: linuxSignature,
       url: releaseUrl("Recode-Linux-x64.AppImage")
     }
   }

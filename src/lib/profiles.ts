@@ -169,7 +169,31 @@ function normalizeTrainer(input: unknown): TrainerEntry | null {
     value: value.value,
     enabled: Boolean(value.enabled),
     hotkey: typeof value.hotkey === "string" ? value.hotkey : undefined,
-    pointerChain: value.pointerChain,
-    signature: value.signature
+    pointerChain:
+      value.pointerChain &&
+      typeof value.pointerChain.moduleName === "string" &&
+      typeof value.pointerChain.baseOffset === "string" &&
+      Array.isArray(value.pointerChain.offsets)
+        ? {
+            moduleName: value.pointerChain.moduleName,
+            baseOffset: value.pointerChain.baseOffset,
+            offsets: value.pointerChain.offsets
+              .filter((item): item is string => typeof item === "string")
+              .slice(0, 16)
+          }
+        : undefined,
+    signature:
+      value.signature &&
+      typeof value.signature.moduleName === "string" &&
+      typeof value.signature.pattern === "string" &&
+      typeof value.signature.matchOffset === "string" &&
+      typeof value.signature.occurrence === "number"
+        ? {
+            moduleName: value.signature.moduleName,
+            pattern: value.signature.pattern,
+            matchOffset: value.signature.matchOffset,
+            occurrence: Math.max(0, Math.min(127, Math.trunc(value.signature.occurrence)))
+          }
+        : undefined
   };
 }

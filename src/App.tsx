@@ -3,7 +3,9 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { check } from "@tauri-apps/plugin-updater";
 import HubPanel from "./components/HubPanel";
+import StoreLibraryPanel from "./components/StoreLibraryPanel";
 import { parseCheatEngineTable } from "./lib/cheatEngine";
+import { loadSettings, saveSettings } from "./lib/settings";
 import {
   register,
   unregisterAll
@@ -30,8 +32,10 @@ import {
   saveProfiles
 } from "./lib/profiles";
 import type {
+  InstalledGame,
   ProcessInfo,
   ProcessModule,
+  RecodeSettings,
   ScanSummary,
   TrainerEntry,
   TrainerProfile,
@@ -95,6 +99,8 @@ export default function App() {
   const [modules, setModules] = useState<ProcessModule[]>([]);
   const [processFilter, setProcessFilter] = useState("");
   const [selected, setSelected] = useState<ProcessInfo | null>(null);
+  const [selectedGame, setSelectedGame] = useState<InstalledGame | null>(null);
+  const [settings, setSettings] = useState<RecodeSettings>(() => loadSettings());
   const [offlineConfirmed, setOfflineConfirmed] = useState(false);
   const [valueType, setValueType] = useState<ValueType>("i32");
   const [scanValue, setScanValue] = useState("100");
@@ -214,8 +220,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      void listProcesses().then(setProcesses).catch(() => {});
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     saveProfiles(profiles);
   }, [profiles]);
+
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
 
   useEffect(() => {
     if (activeProfileId) saveActiveProfileId(activeProfileId);
@@ -895,7 +912,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.1.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.2.0</div>
         </div>
         <div className="topbar-actions">
           <button
@@ -959,6 +976,17 @@ export default function App() {
         </aside>
 
         <section className="content">
+          <StoreLibraryPanel
+            processes={processes}
+            selectedProcess={selected}
+            selectedGame={selectedGame}
+            settings={settings}
+            onSettings={setSettings}
+            onSelectProcess={attach}
+            onSelectGame={setSelectedGame}
+            onStatus={setStatus}
+          />
+
           <div className="profile-bar">
             <div className="profile-select-wrap">
               <span className="eyebrow">PROFILE</span>

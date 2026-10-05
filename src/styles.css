@@ -673,3 +673,98 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+
+.library-card {
+  margin-bottom: 14px;
+  padding: 15px;
+  border: 1px solid #252a31;
+  border-radius: 12px;
+  background: #0d1014;
+}
+
+.library-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.library-heading h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.library-settings {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  color: #9aa1aa;
+  font-size: 10px;
+}
+
+.library-settings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.library-settings input {
+  accent-color: #9aff5c;
+}
+
+.library-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 10px;
+  max-height: 150px;
+  overflow: auto;
+}
+
+.library-game {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-align: left;
+  min-width: 0;
+}
+
+.library-game strong,
+.library-game small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-game small {
+  margin-top: 2px;
+  font-size: 9px;
+}
+
+.library-game.selected {
+  border-color: #45543a;
+  background: #141a12;
+}
+
+.running-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #3a3e44;
+}
+
+.running-dot.online {
+  background: #9aff5c;
+  box-shadow: 0 0 10px rgba(154, 255, 92, 0.45);
+}
+
+@media (max-width: 1180px) {
+  .library-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

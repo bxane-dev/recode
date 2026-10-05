@@ -148,12 +148,6 @@ export default function HubPanel({
         </button>
       </div>
 
-      <div className="hub-note">
-        Recode never executes downloaded trainer EXEs, DLLs, Cheat Engine Auto
-        Assembler scripts, or Lua. Wand/WeMod uses a proprietary encrypted
-        trainer architecture, so those trainers must remain inside the official
-        Wand app.
-      </div>
     </section>
   );
 }

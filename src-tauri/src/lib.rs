@@ -2,6 +2,7 @@ mod commands;
 mod models;
 mod platform;
 mod scanner;
+mod stores;
 
 use commands::AppState;
 
@@ -14,6 +15,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::scan_installed_games,
             commands::list_processes,
             commands::list_modules,
             commands::resolve_pointer_chain,

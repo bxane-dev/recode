@@ -6,10 +6,10 @@ use std::sync::Mutex;
 use tauri::State;
 
 use crate::models::{
-    AddressMatch, PointerResolution, ProcessInfo, ProcessModule, ScanSession, ScanSummary,
+    AddressMatch, InstalledGame, PointerResolution, ProcessInfo, ProcessModule, ScanSession, ScanSummary,
     SignatureResolution, ValueType,
 };
-use crate::{platform, scanner};
+use crate::{platform, scanner, stores};
 
 pub struct AppState {
     scans: Mutex<HashMap<u64, ScanSession>>,
@@ -154,6 +154,11 @@ fn find_module<'a>(
                     .ends_with(&module_name.trim().to_ascii_lowercase())
             })
         })
+}
+
+#[tauri::command]
+pub fn scan_installed_games() -> Result<Vec<InstalledGame>, String> {
+    Ok(stores::scan_installed_games())
 }
 
 #[tauri::command]

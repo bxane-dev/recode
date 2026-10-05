@@ -8,6 +8,16 @@ pub struct ProcessInfo {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstalledGame {
+    pub id: String,
+    pub store: String,
+    pub name: String,
+    pub install_path: String,
+    pub executable: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct ProcessModule {
     pub name: String,
     pub path: String,

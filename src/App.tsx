@@ -458,8 +458,8 @@ export default function App() {
 
       const path = await save({
         title: "Export Recode profile",
-        defaultPath: `${safeName}.recode.json`,
-        filters: [{ name: "Recode profile", extensions: ["json"] }]
+        defaultPath: `${safeName}.rc`,
+        filters: [{ name: "Recode profile", extensions: ["rc"] }]
       });
       if (!path) return;
 
@@ -924,7 +924,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <div className="brand">RECODE</div>
-          <div className="subtitle">offline trainer toolkit · v1.3.0</div>
+          <div className="subtitle">offline trainer toolkit · v1.4.0</div>
         </div>
         <div className="topbar-actions">
           <button

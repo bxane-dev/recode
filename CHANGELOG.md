@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.0 — 2026-10-05
+
+### Added
+- Native Recode `.rc` trainer files.
+- Cheat Engine `.CT` → `.rc` conversion inside Recode.
+- `.rc` import/export and remote Hub URL support.
+- Game-aware **Cheat Engine Web** search for the selected Steam/GOG/Epic title.
+- Direct **OK · Send** AI request flow.
+- OpenAI/ChatGPT API adapter using the Responses API.
+- Claude/Anthropic Messages API adapter.
+- Google Gemini API adapter.
+- Custom OpenAI-compatible/local endpoint support.
+- AI response validation before a trainer can be applied.
+- AI API keys remain session-only and are not included in `.rc` files or Supabase.
+
+### Compatibility
+- Older Recode JSON profiles continue to import.
+- Compatible numeric Cheat Engine entries convert to `.rc`.
+- Unsupported/script-based CT entries are excluded from the data-only conversion.
+
+
 ## 1.3.0 — 2026-10-05
 
 ### Added

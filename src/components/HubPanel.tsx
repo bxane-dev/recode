@@ -1,7 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { readProfileFile, writeProfileFile } from "../lib/api";
+import { parseCheatEngineTable } from "../lib/cheatEngine";
 import { loadHubCatalog, loadRemoteTrainer } from "../lib/hub";
 import { loadSupabaseProfile, searchSupabaseHub } from "../lib/hubDb";
-import type { HubEntry, InstalledGame, ProcessInfo, TrainerProfile } from "../types";
+import { profileToFile } from "../lib/profiles";
+import type {
+  HubEntry,
+  InstalledGame,
+  ProcessInfo,
+  TrainerProfile
+} from "../types";
 
 interface Props {
   selected: ProcessInfo | null;
@@ -30,8 +40,9 @@ export default function HubPanel({
 
   const selectedTarget =
     selected?.name ||
-    selectedGame?.executable?.split(/[\\\\/]/).pop() ||
+    selectedGame?.executable?.split(/[\\/]/).pop() ||
     "";
+  const selectedGameName = selectedGame?.name || selectedTarget;
 
   const matches = useMemo(() => {
     if (!selectedTarget) return [];
@@ -45,12 +56,16 @@ export default function HubPanel({
 
   const search = async () => {
     if (!selectedTarget) {
-      onStatus("Select a detected game or running process before searching Recode Hub");
+      onStatus(
+        "Select a detected game or running process before searching Recode Hub"
+      );
       return;
     }
+
     setLoading(true);
     try {
       let combined: HubEntry[] = [];
+
       try {
         combined = await searchSupabaseHub(selectedTarget);
       } catch {
@@ -67,19 +82,21 @@ export default function HubPanel({
       }
 
       setEntries(combined);
+
       const count = combined.filter((entry) =>
         entry.processNames.some(
           (processName) =>
             normalizeProcess(processName) === normalizeProcess(selectedTarget)
         )
       ).length;
+
       onStatus(
         count
-          ? `Recode Hub found ${count} compatible trainer profile(s)`
+          ? "Recode Hub found " + count + " compatible trainer profile(s)"
           : "No indexed Recode Hub profile matches this game yet"
       );
     } catch (error) {
-      onStatus(`Hub search failed: ${String(error)}`);
+      onStatus("Hub search failed: " + String(error));
     } finally {
       setLoading(false);
     }
@@ -91,19 +108,77 @@ export default function HubPanel({
     }
   }, [selectedTarget, autoDownloadCompatible]);
 
-  const installEntry = async (entry: HubEntry) => {
-    if (!selectedTarget || !offlineConfirmed) {
-      onStatus("Select the offline game and confirm offline/single-player use first");
+  const searchCheatEngineWeb = async () => {
+    if (!selectedGameName) {
+      onStatus("Select a game before searching public Cheat Engine pages");
       return;
     }
+
+    const query = encodeURIComponent(
+      'site:cheatengine.org "' +
+        selectedGameName +
+        '" Cheat Engine table CT'
+    );
+
+    await openUrl("https://www.google.com/search?q=" + query);
+    onStatus("Opened Cheat Engine web results for " + selectedGameName);
+  };
+
+  const convertCtToRc = async () => {
+    try {
+      const path = await open({
+        title: "Choose Cheat Engine table to convert",
+        multiple: false,
+        directory: false,
+        filters: [{ name: "Cheat Engine table", extensions: ["ct"] }]
+      });
+      if (!path || Array.isArray(path)) return;
+
+      const raw = await readProfileFile(path);
+      const profile = parseCheatEngineTable(raw, selectedTarget);
+
+      const safeName =
+        (selectedGameName || "trainer")
+          .replace(/[^a-z0-9-_]+/gi, "-")
+          .replace(/^-+|-+$/g, "")
+          .toLowerCase() || "trainer";
+
+      const destination = await save({
+        title: "Save converted Recode trainer",
+        defaultPath: safeName + ".rc",
+        filters: [{ name: "Recode trainer", extensions: ["rc"] }]
+      });
+      if (!destination) return;
+
+      await writeProfileFile(
+        destination,
+        JSON.stringify(profileToFile(profile), null, 2)
+      );
+
+      onInstall(profile, false);
+      onStatus("Converted .CT to .rc: " + profile.name);
+    } catch (error) {
+      onStatus("CT conversion failed: " + String(error));
+    }
+  };
+
+  const installEntry = async (entry: HubEntry) => {
+    if (!selectedTarget || !offlineConfirmed) {
+      onStatus(
+        "Select the offline game and confirm offline/single-player use first"
+      );
+      return;
+    }
+
     setLoading(true);
     try {
       const profile = entry.profileUrl.startsWith("supabase://")
         ? await loadSupabaseProfile(entry.id)
         : await loadRemoteTrainer(entry.profileUrl, selectedTarget);
+
       onInstall(profile, true);
     } catch (error) {
-      onStatus(`Hub install failed: ${String(error)}`);
+      onStatus("Hub install failed: " + String(error));
     } finally {
       setLoading(false);
     }
@@ -111,18 +186,23 @@ export default function HubPanel({
 
   const importUrl = async () => {
     if (!selectedTarget || !offlineConfirmed) {
-      onStatus("Select the offline game and confirm offline/single-player use first");
+      onStatus(
+        "Select the offline game and confirm offline/single-player use first"
+      );
       return;
     }
     if (!remoteUrl.trim()) return;
 
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(remoteUrl.trim(), selectedTarget);
+      const profile = await loadRemoteTrainer(
+        remoteUrl.trim(),
+        selectedTarget
+      );
       onInstall(profile, true);
       setRemoteUrl("");
     } catch (error) {
-      onStatus(`Remote import failed: ${String(error)}`);
+      onStatus("Remote import failed: " + String(error));
     } finally {
       setLoading(false);
     }
@@ -135,13 +215,26 @@ export default function HubPanel({
           <span className="eyebrow">RECODE HUB</span>
           <h2>1-click trainers</h2>
           <p>
-            Data-only Recode profiles and compatible Cheat Engine tables for
-            offline/single-player games.
+            Recode .rc profiles and compatible Cheat Engine table data for the
+            selected offline/single-player game.
           </p>
         </div>
-        <button className="primary" disabled={loading} onClick={() => void search()}>
-          {loading ? "Searching…" : "Search game"}
-        </button>
+
+        <div className="hub-heading-actions">
+          <button onClick={() => void searchCheatEngineWeb()}>
+            Cheat Engine Web
+          </button>
+          <button onClick={() => void convertCtToRc()}>
+            Convert .CT → .rc
+          </button>
+          <button
+            className="primary"
+            disabled={loading}
+            onClick={() => void search()}
+          >
+            {loading ? "Searching…" : "Search game"}
+          </button>
+        </div>
       </div>
 
       {matches.length > 0 && (
@@ -152,11 +245,12 @@ export default function HubPanel({
                 <strong>{entry.title}</strong>
                 <small>
                   {entry.game}
-                  {entry.author ? ` · ${entry.author}` : ""}
+                  {entry.author ? " · " + entry.author : ""}
                   {entry.verified ? " · VERIFIED" : ""}
                 </small>
                 {entry.description && <p>{entry.description}</p>}
               </div>
+
               <button
                 className="primary"
                 disabled={loading}
@@ -172,7 +266,7 @@ export default function HubPanel({
       <div className="hub-url">
         <input
           className="input"
-          placeholder="Direct .recode.json or .CT raw GitHub/Gist URL"
+          placeholder="Direct .rc, .json, or .CT raw GitHub/Gist URL"
           value={remoteUrl}
           onChange={(event) => setRemoteUrl(event.target.value)}
         />
@@ -180,7 +274,6 @@ export default function HubPanel({
           Import + Apply
         </button>
       </div>
-
     </section>
   );
 }

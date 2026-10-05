@@ -38,7 +38,7 @@ chmod +x Recode-Linux-x64.AppImage
 
 - Native Windows and Linux desktop application using Tauri 2 + Rust
 - React + TypeScript interface
-- Automatic Steam, GOG and Epic Games library detection\n- Provider-neutral AI Builder for ChatGPT, Claude, Gemini and local/other AI models
+- Automatic Steam, GOG and Epic Games library detection\n- Direct AI Builder with OK/Send support for OpenAI/ChatGPT API, Claude/Anthropic, Gemini, and OpenAI-compatible/local AI endpoints
 - Running-process browser and filtering
 - Exact-value scans for i32, u32, i64, u64, f32 and f64
 - Rescans to narrow addresses after values change
@@ -80,19 +80,20 @@ A trainer can use a signed result offset from the matched signature, such as `+0
 
 Recode stores trainers in named profiles. A profile contains its game executable binding plus all saved raw addresses, pointer chains, AOB signatures, values and optional hotkeys.
 
-Profiles can be exported as `*.recode.json` files and imported on another Recode installation. Imported entries are disabled by default until the user explicitly enables them.
+Recode's native trainer file is `*.rc`. Profiles export as `.rc` and can be imported on another Recode installation. Older JSON profiles remain supported for compatibility. Imported entries are disabled by default until the user explicitly enables them.
 
 Hotkeys use Tauri's native global-shortcut support. Examples include `F6`, `Control+Shift+H` and `Alt+F8`. Recode registers only the active profile's shortcuts.
 
 ## Recode Hub and trainer compatibility
 
-Recode includes **Recode Hub**, a data-only online trainer catalog for offline/single-player games. After selecting a game, **Search game** checks the maintained Hub index and **1-Click Apply** imports the matching profile and enables its entries.
+Recode includes **Recode Hub**, a data-only online trainer catalog for offline/single-player games. **Cheat Engine Web** automatically searches public Cheat Engine pages using the currently selected game's name. After selecting a game, **Search game** checks the maintained Hub index and **1-Click Apply** imports the matching profile and enables its entries.
 
 Supported import paths:
 
-- Native Recode `*.recode.json` / JSON trainer profiles.
-- Cheat Engine `*.CT` tables for compatible numeric address/pointer entries.
-- Direct HTTPS `.json` or `.ct` files hosted on GitHub Raw or GitHub Gist.
+- Native Recode `*.rc` trainer profiles.
+- Older Recode JSON trainer profiles for compatibility.
+- Cheat Engine `*.CT` tables for compatible numeric address/pointer entries, including **Convert .CT → .rc**.
+- Direct HTTPS `.rc`, `.json`, or `.ct` files hosted on GitHub Raw or GitHub Gist.
 
 For safety, Recode deliberately skips Cheat Engine Auto Assembler scripts, Lua, DLL injection, executable trainers, and other arbitrary code. Wand/WeMod uses its own proprietary encrypted trainer architecture, so Recode does not extract, crack or execute Wand trainers; users can continue using those through the official Wand application.
 
@@ -100,7 +101,7 @@ The public Hub index lives in `hub/catalog.json`. AI/user-created profiles remai
 
 ## AI Builder and community Hub submissions
 
-Recode 1.3 includes a provider-neutral **AI Builder**. It generates a strict trainer-profile prompt that can be pasted into ChatGPT, Claude, Gemini, local models or another AI. The AI output can then be uploaded back into Recode with **Upload + Apply**.
+Recode 1.4 includes a direct **AI Builder**. Choose OpenAI/ChatGPT API, Claude/Anthropic, Gemini, or an OpenAI-compatible/local endpoint, enter the model and API key, describe the trainer feature, then press **OK · Send**. Recode validates the returned profile before applying it. API keys are not written into `.rc` files or Supabase.
 
 The prompt explicitly tells the AI not to invent addresses or signatures. If technical address data is missing, the AI should ask the user for scan results, a compatible table, a pointer chain, an AOB signature or other known game-specific data.
 

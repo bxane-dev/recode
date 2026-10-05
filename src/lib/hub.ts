@@ -20,8 +20,8 @@ function validateRemoteUrl(raw: string) {
   }
 
   const lower = url.pathname.toLowerCase();
-  if (!lower.endsWith(".json") && !lower.endsWith(".ct")) {
-    throw new Error("Remote trainer must be a .json or .ct file");
+  if (!lower.endsWith(".rc") && !lower.endsWith(".json") && !lower.endsWith(".ct")) {
+    throw new Error("Remote trainer must be a .rc, .json, or .ct file");
   }
   return url.toString();
 }

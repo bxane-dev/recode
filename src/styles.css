@@ -848,3 +848,32 @@ button:disabled {
 .ai-publish-consent input {
   accent-color: currentColor;
 }
+
+
+.hub-heading-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ai-provider-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.2fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ai-endpoint {
+  margin-top: 8px;
+}
+
+@media (max-width: 1000px) {
+  .ai-provider-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .hub-heading-actions {
+    justify-content: flex-start;
+  }
+}

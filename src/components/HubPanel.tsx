@@ -184,8 +184,6 @@ export default function HubPanel({
 
   const visibleEntries = useMemo(() => {
     const installedIds = new Set(installs.map((item) => item.id));
-  const hasFilters =
-    Boolean(query.trim()) || category !== "All" || verifiedOnly || sort !== "updated";
     let source: HubEntry[];
 
     if (tab === "installed") {
@@ -489,6 +487,8 @@ export default function HubPanel({
   };
 
   const installedIds = new Set(installs.map((item) => item.id));
+  const hasFilters =
+    Boolean(query.trim()) || category !== "All" || verifiedOnly || sort !== "updated";
   const heroTitle = selectedGameName || "Browse Recode Hub";
   const heroSubtitle = selectedGame
     ? `${selectedGame.store} · ${compatibleEntries.length} published item(s)`
@@ -523,33 +523,55 @@ export default function HubPanel({
         </div>
       </div>
 
-      <div className="hub-tabs">
-        {(["browse", "installed", "updates", "favorites"] as HubTab[]).map(
-          (value) => (
-            <button
-              key={value}
-              className={tab === value ? "active" : ""}
-              onClick={() => setTab(value)}
-            >
-              {value === "browse"
-                ? "Browse"
-                : value === "installed"
-                  ? `Installed (${installs.length})`
-                  : value === "updates"
-                    ? `Updates (${updateIds.size})`
-                    : `Favorites (${favorites.size})`}
-            </button>
-          )
+      <div className="hub-tabs-row">
+        <div className="hub-tabs">
+          {(["browse", "installed", "updates", "favorites"] as HubTab[]).map(
+            (value) => (
+              <button
+                key={value}
+                className={tab === value ? "active" : ""}
+                onClick={() => setTab(value)}
+              >
+                {value === "browse"
+                  ? "Browse"
+                  : value === "installed"
+                    ? `Installed (${installs.length})`
+                    : value === "updates"
+                      ? `Updates (${updateIds.size})`
+                      : `Favorites (${favorites.size})`}
+              </button>
+            )
+          )}
+        </div>
+        {updateIds.size > 0 && (
+          <button
+            className="primary hub-update-all"
+            disabled={bulkUpdating || busyEntryId !== null}
+            onClick={() => void updateAll()}
+          >
+            {bulkUpdating ? "Updating…" : `Update all (${updateIds.size})`}
+          </button>
         )}
       </div>
 
-      <div className="hub-toolbar">
-        <input
-          className="input"
-          placeholder="Search title, author, description, tags, framework…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+      <div className="hub-toolbar hub-toolbar-v2">
+        <div className="hub-search-wrap">
+          <input
+            className="input"
+            placeholder="Search title, author, description, tags, framework…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query && (
+            <button
+              className="hub-inline-clear"
+              title="Clear search"
+              onClick={() => setQuery("")}
+            >
+              ×
+            </button>
+          )}
+        </div>
         <select
           className="input"
           value={category}
@@ -582,18 +604,40 @@ export default function HubPanel({
         </label>
       </div>
 
+      <div className="hub-results-bar">
+        <span>
+          {loading && entries.length ? "Refreshing · " : ""}
+          {visibleEntries.length} result{visibleEntries.length === 1 ? "" : "s"}
+        </span>
+        {hasFilters && (
+          <button className="ghost" onClick={() => {
+            setQuery("");
+            setCategory("All");
+            setVerifiedOnly(false);
+            setSort("updated");
+          }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+
       {visibleEntries.length ? (
         <div className="hub-mod-grid">
           {visibleEntries.map((entry) => {
             const installed = installedIds.has(entry.id);
             const hasUpdate = updateIds.has(entry.id);
             return (
-              <article className="hub-mod-card" key={entry.id}>
+              <article
+                className={`hub-mod-card ${installed ? "is-installed" : ""}`}
+                key={entry.id}
+              >
                 <div className="hub-mod-cover">
                   <span>{cardInitial(entry.title)}</span>
                   <div className="hub-cover-badges">
                     {entry.featured && <b>FEATURED</b>}
                     {entry.verified && <b>VERIFIED</b>}
+                    {hasUpdate && <b>UPDATE</b>}
+                    {installed && !hasUpdate && <b>INSTALLED</b>}
                   </div>
                 </div>
 
@@ -628,12 +672,39 @@ export default function HubPanel({
                       ))}
                   </div>
 
+                  <div className="hub-compat-row">
+                    {selectedGameName && (
+                      <span className={isCompatible(entry) ? "compatible" : "incompatible"}>
+                        {isCompatible(entry) ? "✓ Compatible" : "Different game"}
+                      </span>
+                    )}
+                    {entry.gameVersion && <span>Game {entry.gameVersion}</span>}
+                  </div>
+
                   <div className="hub-mod-stats">
                     <span>↓ {compactNumber(entry.downloads)}</span>
                     <span>♥ {compactNumber(entry.endorsements)}</span>
                     <span>{entry.trainerCount || 0} options</span>
                     <span>Updated {dateLabel(entry.updatedAt)}</span>
                   </div>
+
+                  <details className="hub-entry-details">
+                    <summary>Details & changelog</summary>
+                    <div className="hub-detail-row">
+                      <b>Processes</b>
+                      <span>{entry.processNames.join(", ") || "Not specified"}</span>
+                    </div>
+                    <div className="hub-detail-row">
+                      <b>Frameworks</b>
+                      <span>{(entry.frameworks || []).join(", ") || "None required"}</span>
+                    </div>
+                    {entry.changelog && <pre>{entry.changelog}</pre>}
+                    {entry.sourceUrl && (
+                      <button onClick={() => void openUrl(entry.sourceUrl!)}>
+                        View source
+                      </button>
+                    )}
+                  </details>
 
                   <div className="hub-mod-actions">
                     <button
@@ -645,14 +716,16 @@ export default function HubPanel({
                     </button>
                     <button
                       className="primary"
-                      disabled={loading}
+                      disabled={busyEntryId !== null || bulkUpdating}
                       onClick={() => void installEntry(entry)}
                     >
-                      {hasUpdate
-                        ? "Update"
-                        : installed
-                          ? "Reinstall"
-                          : "1-Click Install"}
+                      {busyEntryId === entry.id
+                        ? "Installing…"
+                        : hasUpdate
+                          ? "Update"
+                          : installed
+                            ? "Reinstall"
+                            : "1-Click Install"}
                     </button>
                   </div>
                 </div>
@@ -661,14 +734,31 @@ export default function HubPanel({
           })}
         </div>
       ) : (
-        <div className="hub-empty">
-          {tab === "updates"
-            ? "No trainer updates are available."
-            : tab === "installed"
-              ? "No Hub trainers have been installed yet."
-              : tab === "favorites"
-                ? "Favorite trainers to keep them here."
-                : "No trainers match the current filters."}
+        <div className="hub-empty hub-empty-v2">
+          <strong>
+            {tab === "updates"
+              ? "Everything is current"
+              : tab === "installed"
+                ? "No installed Hub trainers"
+                : tab === "favorites"
+                  ? "No favorite trainers yet"
+                  : "No matching trainers"}
+          </strong>
+          <span>
+            {tab === "updates"
+              ? "Installed trainers have no newer Hub versions."
+              : "Try Browse, clear the filters, or refresh the catalog."}
+          </span>
+          {hasFilters && (
+            <button onClick={() => {
+              setQuery("");
+              setCategory("All");
+              setVerifiedOnly(false);
+              setSort("updated");
+            }}>
+              Clear filters
+            </button>
+          )}
         </div>
       )}
 
@@ -685,6 +775,9 @@ export default function HubPanel({
             Import + Apply
           </button>
         </div>
+        <p className="hub-import-note">
+          Remote imports are restricted to HTTPS raw GitHub/Gist URLs.
+        </p>
       </details>
     </section>
   );

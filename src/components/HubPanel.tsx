@@ -24,6 +24,7 @@ import type {
   ProcessInfo,
   TrainerProfile
 } from "../types";
+import "./HubPanel.css";
 
 interface Props {
   selected: ProcessInfo | null;
@@ -36,6 +37,70 @@ interface Props {
 
 type HubTab = "browse" | "installed" | "updates" | "favorites";
 type HubSort = "updated" | "new" | "downloads" | "endorsed" | "title";
+
+const HUB_UI_KEY = "recode.hub.ui.v2";
+const RAW_IMPORT_HOSTS = new Set([
+  "raw.githubusercontent.com",
+  "gist.githubusercontent.com"
+]);
+
+function loadHubUi() {
+  try {
+    return JSON.parse(localStorage.getItem(HUB_UI_KEY) || "{}") as Partial<{
+      tab: HubTab;
+      query: string;
+      category: string;
+      sort: HubSort;
+      verifiedOnly: boolean;
+    }>;
+  } catch {
+    return {};
+  }
+}
+
+function validateRemoteImportUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return "Remote imports must use HTTPS.";
+    if (!RAW_IMPORT_HOSTS.has(url.hostname.toLowerCase())) {
+      return "Use a raw GitHub or raw Gist URL for remote imports.";
+    }
+    return null;
+  } catch {
+    return "Enter a valid remote trainer URL.";
+  }
+}
+
+function isNewerVersion(latest: string, installed: string) {
+  if (latest === installed) return false;
+
+  const parse = (value: string) => {
+    const match = value
+      .trim()
+      .match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9a-z.-]+))?(?:\+[0-9a-z.-]+)?$/i);
+    if (!match) return null;
+    return {
+      parts: [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)],
+      prerelease: match[4] || ""
+    };
+  };
+
+  const next = parse(latest);
+  const current = parse(installed);
+  if (!next || !current) return latest !== installed;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (next.parts[index] !== current.parts[index]) {
+      return next.parts[index] > current.parts[index];
+    }
+  }
+
+  if (!next.prerelease && current.prerelease) return true;
+  if (next.prerelease && !current.prerelease) return false;
+  return next.prerelease.localeCompare(current.prerelease, undefined, {
+    numeric: true
+  }) > 0;
+}
 
 function normalizeProcess(value: string) {
   return value.trim().toLowerCase().replace(/\.(exe|bin)$/i, "");
@@ -66,14 +131,17 @@ export default function HubPanel({
   onInstall,
   onStatus
 }: Props) {
+  const initialUi = useMemo(loadHubUi, []);
   const [entries, setEntries] = useState<HubEntry[]>([]);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<HubTab>("browse");
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState<HubSort>("updated");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [tab, setTab] = useState<HubTab>(initialUi.tab || "browse");
+  const [query, setQuery] = useState(initialUi.query || "");
+  const [category, setCategory] = useState(initialUi.category || "All");
+  const [sort, setSort] = useState<HubSort>(initialUi.sort || "updated");
+  const [verifiedOnly, setVerifiedOnly] = useState(Boolean(initialUi.verifiedOnly));
   const [installs, setInstalls] = useState(() => loadHubInstalls());
   const [favorites, setFavorites] = useState(() => loadHubFavorites());
 
@@ -116,20 +184,39 @@ export default function HubPanel({
     [compatibleEntries]
   );
 
+  useEffect(() => {
+    if (entries.length && category !== "All" && !categories.includes(category)) {
+      setCategory("All");
+    }
+  }, [entries.length, category, categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        HUB_UI_KEY,
+        JSON.stringify({ tab, query, category, sort, verifiedOnly })
+      );
+    } catch {
+      // Hub preferences are optional.
+    }
+  }, [tab, query, category, sort, verifiedOnly]);
+
   const updateIds = useMemo(() => {
     const current = new Map(entries.map((entry) => [entry.id, entry]));
     return new Set(
       installs
         .filter((installed) => {
           const latest = current.get(installed.id);
-          return latest && (latest.version || "1.0.0") !== installed.version;
+          return Boolean(
+            latest &&
+              isNewerVersion(latest.version || "1.0.0", installed.version)
+          );
         })
         .map((installed) => installed.id)
     );
   }, [entries, installs]);
 
   const visibleEntries = useMemo(() => {
-    const installedIds = new Set(installs.map((item) => item.id));
     let source: HubEntry[];
 
     if (tab === "installed") {
@@ -322,15 +409,20 @@ export default function HubPanel({
     }
   };
 
-  const installEntry = async (entry: HubEntry) => {
+  const installEntry = async (entry: HubEntry, quiet = false) => {
     if ((!selectedTarget && !selectedGame) || !offlineConfirmed) {
       onStatus(
         "Select the offline game and confirm offline/single-player use first"
       );
-      return;
+      return false;
     }
 
-    setLoading(true);
+    if (selectedGameName && !isCompatible(entry)) {
+      onStatus(`Select ${entry.game} before installing this trainer`);
+      return false;
+    }
+
+    setBusyEntryId(entry.id);
     try {
       let profile = getCachedHubProfile(entry.id);
       if (!profile) {
@@ -358,16 +450,42 @@ export default function HubPanel({
         );
       }
 
-      onStatus(
-        `${updateIds.has(entry.id) ? "Updated" : "Installed"} ${entry.title} v${
-          entry.version || "1.0.0"
-        }`
-      );
+      if (!quiet) {
+        onStatus(
+          `${updateIds.has(entry.id) ? "Updated" : "Installed"} ${entry.title} v${
+            entry.version || "1.0.0"
+          }`
+        );
+      }
+      return true;
     } catch (error) {
       onStatus("Hub install failed: " + String(error));
+      return false;
     } finally {
-      setLoading(false);
+      setBusyEntryId(null);
     }
+  };
+
+  const updateAll = async () => {
+    if ((!selectedTarget && !selectedGame) || !offlineConfirmed) {
+      onStatus(
+        "Select the offline game and confirm offline/single-player use first"
+      );
+      return;
+    }
+
+    const pending = entries.filter(
+      (entry) => updateIds.has(entry.id) && isCompatible(entry)
+    );
+    if (!pending.length) return;
+
+    setBulkUpdating(true);
+    let completed = 0;
+    for (const entry of pending) {
+      if (await installEntry(entry, true)) completed += 1;
+    }
+    setBulkUpdating(false);
+    onStatus(`Updated ${completed}/${pending.length} Hub trainer(s)`);
   };
 
   const toggleFavorite = (id: string) => {
@@ -380,6 +498,20 @@ export default function HubPanel({
     });
   };
 
+  const openEntrySource = async (entry: HubEntry) => {
+    if (!entry.sourceUrl) return;
+    try {
+      const url = new URL(entry.sourceUrl);
+      if (url.protocol !== "https:") {
+        onStatus("Blocked a non-HTTPS community source link");
+        return;
+      }
+      await openUrl(url.toString());
+    } catch {
+      onStatus("This trainer has an invalid source link");
+    }
+  };
+
   const importUrl = async () => {
     if (!selectedTarget || !offlineConfirmed) {
       onStatus(
@@ -387,11 +519,18 @@ export default function HubPanel({
       );
       return;
     }
-    if (!remoteUrl.trim()) return;
+    const url = remoteUrl.trim();
+    if (!url) return;
+
+    const validation = validateRemoteImportUrl(url);
+    if (validation) {
+      onStatus(validation);
+      return;
+    }
 
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(remoteUrl.trim(), selectedTarget);
+      const profile = await loadRemoteTrainer(url, selectedTarget);
       onInstall(profile, true);
       setRemoteUrl("");
     } catch (error) {
@@ -402,6 +541,11 @@ export default function HubPanel({
   };
 
   const installedIds = new Set(installs.map((item) => item.id));
+  const hasFilters =
+    Boolean(query.trim()) || category !== "All" || verifiedOnly || sort !== "updated";
+  const actionableUpdates = entries.filter(
+    (entry) => updateIds.has(entry.id) && isCompatible(entry)
+  );
   const heroTitle = selectedGameName || "Browse Recode Hub";
   const heroSubtitle = selectedGame
     ? `${selectedGame.store} · ${compatibleEntries.length} published item(s)`
@@ -436,33 +580,55 @@ export default function HubPanel({
         </div>
       </div>
 
-      <div className="hub-tabs">
-        {(["browse", "installed", "updates", "favorites"] as HubTab[]).map(
-          (value) => (
-            <button
-              key={value}
-              className={tab === value ? "active" : ""}
-              onClick={() => setTab(value)}
-            >
-              {value === "browse"
-                ? "Browse"
-                : value === "installed"
-                  ? `Installed (${installs.length})`
-                  : value === "updates"
-                    ? `Updates (${updateIds.size})`
-                    : `Favorites (${favorites.size})`}
-            </button>
-          )
+      <div className="hub-tabs-row">
+        <div className="hub-tabs">
+          {(["browse", "installed", "updates", "favorites"] as HubTab[]).map(
+            (value) => (
+              <button
+                key={value}
+                className={tab === value ? "active" : ""}
+                onClick={() => setTab(value)}
+              >
+                {value === "browse"
+                  ? "Browse"
+                  : value === "installed"
+                    ? `Installed (${installs.length})`
+                    : value === "updates"
+                      ? `Updates (${updateIds.size})`
+                      : `Favorites (${favorites.size})`}
+              </button>
+            )
+          )}
+        </div>
+        {actionableUpdates.length > 0 && (
+          <button
+            className="primary hub-update-all"
+            disabled={bulkUpdating || busyEntryId !== null}
+            onClick={() => void updateAll()}
+          >
+            {bulkUpdating ? "Updating…" : `Update all (${actionableUpdates.length})`}
+          </button>
         )}
       </div>
 
-      <div className="hub-toolbar">
-        <input
-          className="input"
-          placeholder="Search title, author, description, tags, framework…"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
+      <div className="hub-toolbar hub-toolbar-v2">
+        <div className="hub-search-wrap">
+          <input
+            className="input"
+            placeholder="Search title, author, description, tags, framework…"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          {query && (
+            <button
+              className="hub-inline-clear"
+              title="Clear search"
+              onClick={() => setQuery("")}
+            >
+              ×
+            </button>
+          )}
+        </div>
         <select
           className="input"
           value={category}
@@ -495,18 +661,53 @@ export default function HubPanel({
         </label>
       </div>
 
-      {visibleEntries.length ? (
+      <div className="hub-results-bar">
+        <span>
+          {loading && entries.length ? "Refreshing · " : ""}
+          {visibleEntries.length} result{visibleEntries.length === 1 ? "" : "s"}
+        </span>
+        {hasFilters && (
+          <button className="ghost" onClick={() => {
+            setQuery("");
+            setCategory("All");
+            setVerifiedOnly(false);
+            setSort("updated");
+          }}>
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {loading && entries.length === 0 ? (
+        <div className="hub-mod-grid">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <div className="hub-mod-card hub-skeleton" key={index}>
+              <div className="hub-mod-cover" />
+              <div className="hub-mod-body">
+                <i />
+                <i />
+                <i />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : visibleEntries.length ? (
         <div className="hub-mod-grid">
           {visibleEntries.map((entry) => {
             const installed = installedIds.has(entry.id);
             const hasUpdate = updateIds.has(entry.id);
             return (
-              <article className="hub-mod-card" key={entry.id}>
+              <article
+                className={`hub-mod-card ${installed ? "is-installed" : ""}`}
+                key={entry.id}
+              >
                 <div className="hub-mod-cover">
                   <span>{cardInitial(entry.title)}</span>
                   <div className="hub-cover-badges">
                     {entry.featured && <b>FEATURED</b>}
                     {entry.verified && <b>VERIFIED</b>}
+                    {hasUpdate && <b>UPDATE</b>}
+                    {installed && !hasUpdate && <b>INSTALLED</b>}
                   </div>
                 </div>
 
@@ -541,12 +742,39 @@ export default function HubPanel({
                       ))}
                   </div>
 
+                  <div className="hub-compat-row">
+                    {selectedGameName && (
+                      <span className={isCompatible(entry) ? "compatible" : "incompatible"}>
+                        {isCompatible(entry) ? "✓ Compatible" : "Different game"}
+                      </span>
+                    )}
+                    {entry.gameVersion && <span>Game {entry.gameVersion}</span>}
+                  </div>
+
                   <div className="hub-mod-stats">
                     <span>↓ {compactNumber(entry.downloads)}</span>
                     <span>♥ {compactNumber(entry.endorsements)}</span>
                     <span>{entry.trainerCount || 0} options</span>
                     <span>Updated {dateLabel(entry.updatedAt)}</span>
                   </div>
+
+                  <details className="hub-entry-details">
+                    <summary>Details & changelog</summary>
+                    <div className="hub-detail-row">
+                      <b>Processes</b>
+                      <span>{entry.processNames.join(", ") || "Not specified"}</span>
+                    </div>
+                    <div className="hub-detail-row">
+                      <b>Frameworks</b>
+                      <span>{(entry.frameworks || []).join(", ") || "None required"}</span>
+                    </div>
+                    {entry.changelog && <pre>{entry.changelog}</pre>}
+                    {entry.sourceUrl && (
+                      <button onClick={() => void openEntrySource(entry)}>
+                        View source
+                      </button>
+                    )}
+                  </details>
 
                   <div className="hub-mod-actions">
                     <button
@@ -558,14 +786,22 @@ export default function HubPanel({
                     </button>
                     <button
                       className="primary"
-                      disabled={loading}
+                      disabled={
+                        busyEntryId !== null ||
+                        bulkUpdating ||
+                        Boolean(selectedGameName && !isCompatible(entry))
+                      }
                       onClick={() => void installEntry(entry)}
                     >
-                      {hasUpdate
-                        ? "Update"
-                        : installed
-                          ? "Reinstall"
-                          : "1-Click Install"}
+                      {busyEntryId === entry.id
+                        ? "Installing…"
+                        : selectedGameName && !isCompatible(entry)
+                          ? "Select game"
+                          : hasUpdate
+                            ? "Update"
+                          : installed
+                            ? "Reinstall"
+                            : "1-Click Install"}
                     </button>
                   </div>
                 </div>
@@ -574,14 +810,31 @@ export default function HubPanel({
           })}
         </div>
       ) : (
-        <div className="hub-empty">
-          {tab === "updates"
-            ? "No trainer updates are available."
-            : tab === "installed"
-              ? "No Hub trainers have been installed yet."
-              : tab === "favorites"
-                ? "Favorite trainers to keep them here."
-                : "No trainers match the current filters."}
+        <div className="hub-empty hub-empty-v2">
+          <strong>
+            {tab === "updates"
+              ? "Everything is current"
+              : tab === "installed"
+                ? "No installed Hub trainers"
+                : tab === "favorites"
+                  ? "No favorite trainers yet"
+                  : "No matching trainers"}
+          </strong>
+          <span>
+            {tab === "updates"
+              ? "Installed trainers have no newer Hub versions."
+              : "Try Browse, clear the filters, or refresh the catalog."}
+          </span>
+          {hasFilters && (
+            <button onClick={() => {
+              setQuery("");
+              setCategory("All");
+              setVerifiedOnly(false);
+              setSort("updated");
+            }}>
+              Clear filters
+            </button>
+          )}
         </div>
       )}
 
@@ -598,6 +851,9 @@ export default function HubPanel({
             Import + Apply
           </button>
         </div>
+        <p className="hub-import-note">
+          Remote imports are restricted to HTTPS raw GitHub/Gist URLs.
+        </p>
       </details>
     </section>
   );

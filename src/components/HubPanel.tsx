@@ -384,6 +384,11 @@ export default function HubPanel({
       return false;
     }
 
+    if (selectedGameName && !isCompatible(entry)) {
+      onStatus(`Select ${entry.game} before installing this trainer`);
+      return false;
+    }
+
     setBusyEntryId(entry.id);
     try {
       let profile = getCachedHubProfile(entry.id);
@@ -436,7 +441,9 @@ export default function HubPanel({
       return;
     }
 
-    const pending = entries.filter((entry) => updateIds.has(entry.id));
+    const pending = entries.filter(
+      (entry) => updateIds.has(entry.id) && isCompatible(entry)
+    );
     if (!pending.length) return;
 
     setBulkUpdating(true);
@@ -489,6 +496,9 @@ export default function HubPanel({
   const installedIds = new Set(installs.map((item) => item.id));
   const hasFilters =
     Boolean(query.trim()) || category !== "All" || verifiedOnly || sort !== "updated";
+  const actionableUpdates = entries.filter(
+    (entry) => updateIds.has(entry.id) && isCompatible(entry)
+  );
   const heroTitle = selectedGameName || "Browse Recode Hub";
   const heroSubtitle = selectedGame
     ? `${selectedGame.store} · ${compatibleEntries.length} published item(s)`
@@ -543,13 +553,13 @@ export default function HubPanel({
             )
           )}
         </div>
-        {updateIds.size > 0 && (
+        {actionableUpdates.length > 0 && (
           <button
             className="primary hub-update-all"
             disabled={bulkUpdating || busyEntryId !== null}
             onClick={() => void updateAll()}
           >
-            {bulkUpdating ? "Updating…" : `Update all (${updateIds.size})`}
+            {bulkUpdating ? "Updating…" : `Update all (${actionableUpdates.length})`}
           </button>
         )}
       </div>
@@ -716,13 +726,19 @@ export default function HubPanel({
                     </button>
                     <button
                       className="primary"
-                      disabled={busyEntryId !== null || bulkUpdating}
+                      disabled={
+                        busyEntryId !== null ||
+                        bulkUpdating ||
+                        Boolean(selectedGameName && !isCompatible(entry))
+                      }
                       onClick={() => void installEntry(entry)}
                     >
                       {busyEntryId === entry.id
                         ? "Installing…"
-                        : hasUpdate
-                          ? "Update"
+                        : selectedGameName && !isCompatible(entry)
+                          ? "Select game"
+                          : hasUpdate
+                            ? "Update"
                           : installed
                             ? "Reinstall"
                             : "1-Click Install"}

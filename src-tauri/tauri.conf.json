@@ -66,7 +66,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFDOEFEQjJCQUExNzdCNEQKUldSTmV4ZXFLOXVLSE9SZ3hsMTJvS05NSmgyeHA3UUs0YTVBeXBRaVpLM3FMV1hkczR2OS9xSWgK",
       "endpoints": [
-        "https://github.com/bxane-dev/recode/releases/latest/download/latest.json"
+        "https://github.com/bxanedot/recode/releases/latest/download/latest.json"
       ],
       "requireSignedVersion": true,
       "allowDowngrades": false,

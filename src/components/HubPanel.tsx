@@ -71,6 +71,35 @@ function validateRemoteImportUrl(value: string) {
   }
 }
 
+function isNewerVersion(latest: string, installed: string) {
+  if (latest === installed) return false;
+
+  const parse = (value: string) => {
+    const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+](.*))?$/i);
+    if (!match) return null;
+    return {
+      parts: [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)],
+      prerelease: match[4] || ""
+    };
+  };
+
+  const next = parse(latest);
+  const current = parse(installed);
+  if (!next || !current) return latest !== installed;
+
+  for (let index = 0; index < 3; index += 1) {
+    if (next.parts[index] !== current.parts[index]) {
+      return next.parts[index] > current.parts[index];
+    }
+  }
+
+  if (!next.prerelease && current.prerelease) return true;
+  if (next.prerelease && !current.prerelease) return false;
+  return next.prerelease.localeCompare(current.prerelease, undefined, {
+    numeric: true
+  }) > 0;
+}
+
 function normalizeProcess(value: string) {
   return value.trim().toLowerCase().replace(/\.(exe|bin)$/i, "");
 }
@@ -176,7 +205,10 @@ export default function HubPanel({
       installs
         .filter((installed) => {
           const latest = current.get(installed.id);
-          return latest && (latest.version || "1.0.0") !== installed.version;
+          return Boolean(
+            latest &&
+              isNewerVersion(latest.version || "1.0.0", installed.version)
+          );
         })
         .map((installed) => installed.id)
     );
@@ -465,6 +497,20 @@ export default function HubPanel({
     });
   };
 
+  const openEntrySource = async (entry: HubEntry) => {
+    if (!entry.sourceUrl) return;
+    try {
+      const url = new URL(entry.sourceUrl);
+      if (url.protocol !== "https:") {
+        onStatus("Blocked a non-HTTPS community source link");
+        return;
+      }
+      await openUrl(url.toString());
+    } catch {
+      onStatus("This trainer has an invalid source link");
+    }
+  };
+
   const importUrl = async () => {
     if (!selectedTarget || !offlineConfirmed) {
       onStatus(
@@ -723,7 +769,7 @@ export default function HubPanel({
                     </div>
                     {entry.changelog && <pre>{entry.changelog}</pre>}
                     {entry.sourceUrl && (
-                      <button onClick={() => void openUrl(entry.sourceUrl!)}>
+                      <button onClick={() => void openEntrySource(entry)}>
                         View source
                       </button>
                     )}

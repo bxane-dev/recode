@@ -24,6 +24,7 @@ import type {
   ProcessInfo,
   TrainerProfile
 } from "../types";
+import "./HubPanel.css";
 
 interface Props {
   selected: ProcessInfo | null;
@@ -36,6 +37,39 @@ interface Props {
 
 type HubTab = "browse" | "installed" | "updates" | "favorites";
 type HubSort = "updated" | "new" | "downloads" | "endorsed" | "title";
+
+const HUB_UI_KEY = "recode.hub.ui.v2";
+const RAW_IMPORT_HOSTS = new Set([
+  "raw.githubusercontent.com",
+  "gist.githubusercontent.com"
+]);
+
+function loadHubUi() {
+  try {
+    return JSON.parse(localStorage.getItem(HUB_UI_KEY) || "{}") as Partial<{
+      tab: HubTab;
+      query: string;
+      category: string;
+      sort: HubSort;
+      verifiedOnly: boolean;
+    }>;
+  } catch {
+    return {};
+  }
+}
+
+function validateRemoteImportUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return "Remote imports must use HTTPS.";
+    if (!RAW_IMPORT_HOSTS.has(url.hostname.toLowerCase())) {
+      return "Use a raw GitHub or raw Gist URL for remote imports.";
+    }
+    return null;
+  } catch {
+    return "Enter a valid remote trainer URL.";
+  }
+}
 
 function normalizeProcess(value: string) {
   return value.trim().toLowerCase().replace(/\.(exe|bin)$/i, "");
@@ -66,14 +100,17 @@ export default function HubPanel({
   onInstall,
   onStatus
 }: Props) {
+  const initialUi = useMemo(loadHubUi, []);
   const [entries, setEntries] = useState<HubEntry[]>([]);
   const [remoteUrl, setRemoteUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<HubTab>("browse");
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState<HubSort>("updated");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [tab, setTab] = useState<HubTab>(initialUi.tab || "browse");
+  const [query, setQuery] = useState(initialUi.query || "");
+  const [category, setCategory] = useState(initialUi.category || "All");
+  const [sort, setSort] = useState<HubSort>(initialUi.sort || "updated");
+  const [verifiedOnly, setVerifiedOnly] = useState(Boolean(initialUi.verifiedOnly));
   const [installs, setInstalls] = useState(() => loadHubInstalls());
   const [favorites, setFavorites] = useState(() => loadHubFavorites());
 
@@ -116,6 +153,23 @@ export default function HubPanel({
     [compatibleEntries]
   );
 
+  useEffect(() => {
+    if (entries.length && category !== "All" && !categories.includes(category)) {
+      setCategory("All");
+    }
+  }, [entries.length, category, categories]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        HUB_UI_KEY,
+        JSON.stringify({ tab, query, category, sort, verifiedOnly })
+      );
+    } catch {
+      // Hub preferences are optional.
+    }
+  }, [tab, query, category, sort, verifiedOnly]);
+
   const updateIds = useMemo(() => {
     const current = new Map(entries.map((entry) => [entry.id, entry]));
     return new Set(
@@ -130,6 +184,8 @@ export default function HubPanel({
 
   const visibleEntries = useMemo(() => {
     const installedIds = new Set(installs.map((item) => item.id));
+  const hasFilters =
+    Boolean(query.trim()) || category !== "All" || verifiedOnly || sort !== "updated";
     let source: HubEntry[];
 
     if (tab === "installed") {
@@ -322,15 +378,15 @@ export default function HubPanel({
     }
   };
 
-  const installEntry = async (entry: HubEntry) => {
+  const installEntry = async (entry: HubEntry, quiet = false) => {
     if ((!selectedTarget && !selectedGame) || !offlineConfirmed) {
       onStatus(
         "Select the offline game and confirm offline/single-player use first"
       );
-      return;
+      return false;
     }
 
-    setLoading(true);
+    setBusyEntryId(entry.id);
     try {
       let profile = getCachedHubProfile(entry.id);
       if (!profile) {
@@ -358,16 +414,40 @@ export default function HubPanel({
         );
       }
 
-      onStatus(
-        `${updateIds.has(entry.id) ? "Updated" : "Installed"} ${entry.title} v${
-          entry.version || "1.0.0"
-        }`
-      );
+      if (!quiet) {
+        onStatus(
+          `${updateIds.has(entry.id) ? "Updated" : "Installed"} ${entry.title} v${
+            entry.version || "1.0.0"
+          }`
+        );
+      }
+      return true;
     } catch (error) {
       onStatus("Hub install failed: " + String(error));
+      return false;
     } finally {
-      setLoading(false);
+      setBusyEntryId(null);
     }
+  };
+
+  const updateAll = async () => {
+    if ((!selectedTarget && !selectedGame) || !offlineConfirmed) {
+      onStatus(
+        "Select the offline game and confirm offline/single-player use first"
+      );
+      return;
+    }
+
+    const pending = entries.filter((entry) => updateIds.has(entry.id));
+    if (!pending.length) return;
+
+    setBulkUpdating(true);
+    let completed = 0;
+    for (const entry of pending) {
+      if (await installEntry(entry, true)) completed += 1;
+    }
+    setBulkUpdating(false);
+    onStatus(`Updated ${completed}/${pending.length} Hub trainer(s)`);
   };
 
   const toggleFavorite = (id: string) => {
@@ -387,11 +467,18 @@ export default function HubPanel({
       );
       return;
     }
-    if (!remoteUrl.trim()) return;
+    const url = remoteUrl.trim();
+    if (!url) return;
+
+    const validation = validateRemoteImportUrl(url);
+    if (validation) {
+      onStatus(validation);
+      return;
+    }
 
     setLoading(true);
     try {
-      const profile = await loadRemoteTrainer(remoteUrl.trim(), selectedTarget);
+      const profile = await loadRemoteTrainer(url, selectedTarget);
       onInstall(profile, true);
       setRemoteUrl("");
     } catch (error) {

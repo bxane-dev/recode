@@ -631,7 +631,20 @@ export default function HubPanel({
         )}
       </div>
 
-      {visibleEntries.length ? (
+      {loading && entries.length === 0 ? (
+        <div className="hub-mod-grid">
+          {[0, 1, 2, 3, 4, 5].map((index) => (
+            <div className="hub-mod-card hub-skeleton" key={index}>
+              <div className="hub-mod-cover" />
+              <div className="hub-mod-body">
+                <i />
+                <i />
+                <i />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : visibleEntries.length ? (
         <div className="hub-mod-grid">
           {visibleEntries.map((entry) => {
             const installed = installedIds.has(entry.id);

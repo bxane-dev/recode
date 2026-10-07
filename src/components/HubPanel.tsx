@@ -75,7 +75,9 @@ function isNewerVersion(latest: string, installed: string) {
   if (latest === installed) return false;
 
   const parse = (value: string) => {
-    const match = value.trim().match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+](.*))?$/i);
+    const match = value
+      .trim()
+      .match(/^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9a-z.-]+))?(?:\+[0-9a-z.-]+)?$/i);
     if (!match) return null;
     return {
       parts: [Number(match[1]), Number(match[2] || 0), Number(match[3] || 0)],
@@ -215,7 +217,6 @@ export default function HubPanel({
   }, [entries, installs]);
 
   const visibleEntries = useMemo(() => {
-    const installedIds = new Set(installs.map((item) => item.id));
     let source: HubEntry[];
 
     if (tab === "installed") {
